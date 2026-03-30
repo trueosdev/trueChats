@@ -69,6 +69,20 @@
     @apply bg-background text-foreground;
   }
 
+  /* No native blue focus box / tap flash on buttons — components use theme focus-visible rings where needed */
+  button,
+  [type="button"],
+  [type="submit"],
+  [type="reset"],
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+  }
+
+  button::-moz-focus-inner {
+    border: 0;
+  }
+
   html.terminal-mode {
     --frame-inset: 0px;
   }
