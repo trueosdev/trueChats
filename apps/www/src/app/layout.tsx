@@ -11,6 +11,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { TerminalModeProvider } from "@/components/terminal/terminal-mode-provider";
+import { FrameInsetProvider } from "@/components/frame-inset/frame-inset-provider";
+import { BorderAdjustBar } from "@/components/frame-inset/border-adjust-bar";
 
 const questrial = Questrial({
   weight: "400",
@@ -40,11 +42,14 @@ export default function RootLayout({
       <body className={questrial.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            <TerminalModeProvider>
-            <main className="flex h-[calc(100dvh)] flex-col items-center justify-center p-4 md:px-24 py-32 gap-4">
-              {children}
-            </main>
-            </TerminalModeProvider>
+            <FrameInsetProvider>
+              <TerminalModeProvider>
+                <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch p-[var(--frame-inset)] transition-[padding] duration-200 ease-out">
+                  {children}
+                </main>
+              </TerminalModeProvider>
+              <BorderAdjustBar />
+            </FrameInsetProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

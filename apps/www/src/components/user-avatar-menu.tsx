@@ -11,10 +11,14 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { LogOut, UserCircle, ImageIcon } from "lucide-react";
+import { LogOut, ImageIcon } from "lucide-react";
+import { useFrameInset } from "@/components/frame-inset/frame-inset-provider";
 import { signOut } from "@/lib/supabase/auth";
 import { useRouter } from "next/navigation";
 import { ChangeAvatarDialog } from "./change-avatar-dialog";
@@ -23,6 +27,7 @@ import { ThemeEditor } from "./theme-editor";
 export function UserAvatarMenu() {
   const { user } = useAuth();
   const { colorTheme } = useColorTheme();
+  const { openBorderAdjust } = useFrameInset();
   const isBlackWhite = colorTheme.name === "Black & White";
   const router = useRouter();
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
@@ -84,6 +89,20 @@ export function UserAvatarMenu() {
             <span>Change Avatar</span>
           </DropdownMenuItem>
           <ThemeEditor />
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              <span>More settings...</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={openBorderAdjust}
+              >
+                Adjust border
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className={`cursor-pointer ${isBlackWhite ? "text-foreground" : "text-red-600"}`}>
             <LogOut className="mr-2 h-4 w-4" />

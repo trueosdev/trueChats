@@ -28,6 +28,11 @@
     --input: 0 0% 100%;
     --ring: 0 0% 9%;
     --radius: 1rem;
+    /* 0 = full window (no frame). 1–100 = outer padding scales up; 100 = old default framed window. */
+    --frame-inset-pct: 100;
+    --frame-inset: calc(
+      var(--frame-inset-pct) / 100 * 0.16 * min(100vw, 100dvh)
+    );
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
@@ -62,6 +67,10 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  html.terminal-mode {
+    --frame-inset: 0px;
   }
 
   /* Hide scrollbars site-wide */
