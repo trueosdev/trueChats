@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AccessToken } from "livekit-server-sdk";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.replace("Bearer ", "");
 
-  if (!user) {
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+
+  if (error || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -31,19 +39,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const token = new AccessToken(apiKey, apiSecret, {
+  const accessToken = new AccessToken(apiKey, apiSecret, {
     identity: user.id,
     name: participantName,
   });
 
-  token.addGrant({
+  accessToken.addGrant({
     room: roomName,
     roomJoin: true,
     canPublish: true,
     canSubscribe: true,
   });
 
-  const jwt = await token.toJwt();
+  const jwt = await accessToken.toJwt();
 
   return NextResponse.json({ token: jwt });
 }
