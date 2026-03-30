@@ -60,6 +60,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const pendingSignalRef = useRef<CallSignal | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  // Refs so the channel callback always sees latest state without re-subscribing
+  const callStateRef = useRef(callState);
+  callStateRef.current = callState;
+  const userRef = useRef(user);
+  userRef.current = user;
+
   const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || "";
 
   const resetCall = useCallback(() => {
@@ -72,61 +78,66 @@ export function CallProvider({ children }: { children: ReactNode }) {
     pendingSignalRef.current = null;
   }, []);
 
-  const handleSignal = useCallback(
-    (signal: CallSignal) => {
-      if (!user) return;
+  const resetCallRef = useRef(resetCall);
+  resetCallRef.current = resetCall;
 
-      switch (signal.type) {
-        case "offer": {
-          if (callState !== "idle") {
-            sendCallSignal(signal.callerId, {
-              ...signal,
-              type: "busy",
-              calleeId: signal.callerId,
-              callerId: user.id,
-              callerName:
-                user.user_metadata?.fullname ||
-                user.user_metadata?.username ||
-                "User",
-              callerAvatar: user.user_metadata?.avatar_url || null,
-              timestamp: new Date().toISOString(),
-            });
-            return;
-          }
-          pendingSignalRef.current = signal;
-          setCallState("incoming");
-          setCallType(signal.callType);
-          setRemoteUser({
-            id: signal.callerId,
-            name: signal.callerName,
-            avatar: signal.callerAvatar,
+  // Stable handler that reads state from refs — never causes re-subscription
+  const handleSignal = useCallback((signal: CallSignal) => {
+    const currentUser = userRef.current;
+    if (!currentUser) return;
+
+    const currentCallState = callStateRef.current;
+
+    switch (signal.type) {
+      case "offer": {
+        if (currentCallState !== "idle") {
+          sendCallSignal(signal.callerId, {
+            ...signal,
+            type: "busy",
+            calleeId: signal.callerId,
+            callerId: currentUser.id,
+            callerName:
+              currentUser.user_metadata?.fullname ||
+              currentUser.user_metadata?.username ||
+              "User",
+            callerAvatar: currentUser.user_metadata?.avatar_url || null,
+            timestamp: new Date().toISOString(),
           });
-          setConversationId(signal.conversationId);
-          setRoomName(signal.roomName);
-          break;
+          return;
         }
-        case "answer": {
-          if (callState === "outgoing") {
-            setCallState("connected");
-          }
-          break;
-        }
-        case "reject":
-        case "busy": {
-          if (callState === "outgoing") {
-            resetCall();
-          }
-          break;
-        }
-        case "hangup": {
-          resetCall();
-          break;
-        }
+        pendingSignalRef.current = signal;
+        setCallState("incoming");
+        setCallType(signal.callType);
+        setRemoteUser({
+          id: signal.callerId,
+          name: signal.callerName,
+          avatar: signal.callerAvatar,
+        });
+        setConversationId(signal.conversationId);
+        setRoomName(signal.roomName);
+        break;
       }
-    },
-    [user, callState, resetCall],
-  );
+      case "answer": {
+        if (currentCallState === "outgoing") {
+          setCallState("connected");
+        }
+        break;
+      }
+      case "reject":
+      case "busy": {
+        if (currentCallState === "outgoing") {
+          resetCallRef.current();
+        }
+        break;
+      }
+      case "hangup": {
+        resetCallRef.current();
+        break;
+      }
+    }
+  }, []); // no deps — reads everything from refs
 
+  // Subscribe once per user, never re-subscribes on state changes
   useEffect(() => {
     if (!user) return;
 
@@ -146,7 +157,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       calleeName: string,
       type: CallType,
     ) => {
-      if (!user || callState !== "idle") return;
+      if (!user || callStateRef.current !== "idle") return;
 
       const room = getCallRoomName(targetConversationId);
       const displayName =
@@ -180,14 +191,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
         resetCall();
       }
     },
-    [user, callState, resetCall],
+    [user, resetCall],
   );
 
   const acceptCall = useCallback(async () => {
-    if (!user || callState !== "incoming" || !roomName) return;
+    if (!user || callStateRef.current !== "incoming") return;
 
     const signal = pendingSignalRef.current;
-    if (!signal) return;
+    const currentRoomName = roomName;
+    if (!signal || !currentRoomName) return;
 
     const displayName =
       user.user_metadata?.fullname ||
@@ -195,7 +207,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       "User";
 
     try {
-      const token = await getLiveKitToken(roomName, displayName);
+      const token = await getLiveKitToken(currentRoomName, displayName);
       setLivekitToken(token);
       setCallState("connected");
 
@@ -207,10 +219,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     } catch {
       resetCall();
     }
-  }, [user, callState, roomName, resetCall]);
+  }, [user, roomName, resetCall]);
 
   const rejectCall = useCallback(() => {
-    if (!user || callState !== "incoming") return;
+    if (!user || callStateRef.current !== "incoming") return;
 
     const signal = pendingSignalRef.current;
     if (signal) {
@@ -221,7 +233,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       });
     }
     resetCall();
-  }, [user, callState, resetCall]);
+  }, [user, resetCall]);
 
   const hangUp = useCallback(() => {
     if (!user || !remoteUser) return;
