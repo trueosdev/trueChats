@@ -13,6 +13,7 @@ import { ExpandableChatHeader } from "@shadcn-chat/ui";
 import { subscribeToPresence, type UserPresence } from "@/lib/services/presence";
 import { useAuth } from "@/hooks/useAuth";
 import { useColorTheme } from "@/hooks/useColorTheme";
+import { useCall } from "@/components/call/call-provider";
 
 interface ChatTopbarProps {
   conversation: ConversationWithUser;
@@ -25,6 +26,7 @@ export const TopbarIcons = [{ icon: Phone }, { icon: Video }, { icon: Info }];
 export default function ChatTopbar({ conversation, onShowMembers, onShowSearch }: ChatTopbarProps) {
   const { user } = useAuth();
   const { colorTheme } = useColorTheme();
+  const { startCall, callState } = useCall();
   const isBlackWhite = colorTheme.name === "Black & White";
   const [isOnline, setIsOnline] = useState(false);
 
@@ -123,18 +125,60 @@ export default function ChatTopbar({ conversation, onShowMembers, onShowSearch }
           </span>
         </div>
       </div>
-      {onShowSearch && (
+      <div className="flex items-center gap-1">
+        {onShowSearch && (
+          <button
+            onClick={onShowSearch}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "h-8 w-8"
+            )}
+            title="Search messages"
+          >
+            <Search size={18} />
+          </button>
+        )}
         <button
-          onClick={onShowSearch}
+          onClick={() => {
+            if (callState !== "idle") return;
+            startCall(
+              conversation.id,
+              otherUser.id,
+              otherUser.fullname || otherUser.username || otherUser.email || "User",
+              "audio",
+            );
+          }}
+          disabled={callState !== "idle"}
           className={cn(
             buttonVariants({ variant: "ghost", size: "icon" }),
-            "h-8 w-8"
+            "h-8 w-8",
+            callState !== "idle" && "opacity-40 cursor-not-allowed",
           )}
-          title="Search messages"
+          title="Voice call"
         >
-          <Search size={18} />
+          <Phone size={18} />
         </button>
-      )}
+        <button
+          onClick={() => {
+            if (callState !== "idle") return;
+            startCall(
+              conversation.id,
+              otherUser.id,
+              otherUser.fullname || otherUser.username || otherUser.email || "User",
+              "video",
+            );
+          }}
+          disabled={callState !== "idle"}
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "icon" }),
+            "h-8 w-8",
+            callState !== "idle" && "opacity-40 cursor-not-allowed",
+          )}
+          title="Video call"
+        >
+          <Video size={18} />
+        </button>
+      </div>
     </ExpandableChatHeader>
   );
 }
