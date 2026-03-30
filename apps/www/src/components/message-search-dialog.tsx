@@ -68,7 +68,7 @@ export function MessageSearchDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-white/10">
       <div className="bg-white dark:bg-black border border-black dark:border-white rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-black dark:border-white">
+        <div className="flex items-center justify-between p-4 border-none">
           <div>
             <h2 className="text-xl font-semibold text-black dark:text-white">
               Search Messages
@@ -88,7 +88,7 @@ export function MessageSearchDialog({
           </Button>
         </div>
 
-        <div className="p-4 border-b border-black dark:border-white">
+        <div className="p-4 border-none">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black dark:text-white" />
             <input
@@ -110,7 +110,6 @@ export function MessageSearchDialog({
         <div className="flex-1 overflow-y-auto p-4">
           {!searchQuery ? (
             <div className="text-center py-8 text-black dark:text-white">
-              <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Type to search messages in this conversation</p>
             </div>
           ) : filteredMessages.length === 0 ? (

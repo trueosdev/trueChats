@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { MoreHorizontal, SquarePen, Users, Mailbox } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,10 +13,13 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Message } from "@/app/data";
 import { UserAvatarMenu } from "./user-avatar-menu";
 import { Skeleton } from "./ui/skeleton";
+import { NewChatDialog } from "./new-chat-dialog";
+import { NewGroupDialog } from "./new-group-dialog";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -35,13 +38,18 @@ interface SidebarProps {
   isMobile: boolean;
   onChatSelect?: (conversationId: string) => void;
   onNewChat?: () => void;
+  onNewChatCreated?: (conversationId: string) => void;
   onNewGroup?: () => void;
+  onGroupCreated?: (conversationId: string) => void;
   onPendingChats?: () => void;
   pendingRequestCount?: number;
   loading?: boolean;
 }
 
-export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat, onNewGroup, onPendingChats, pendingRequestCount = 0, loading = false }: SidebarProps) {
+export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat, onNewChatCreated, onNewGroup, onGroupCreated, onPendingChats, pendingRequestCount = 0, loading = false }: SidebarProps) {
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
+
   return (
     <div
       data-collapsed={isCollapsed}
@@ -52,24 +60,33 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
           <div className="flex items-center gap-2">
             <UserAvatarMenu />
 
-            <TooltipProvider>
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={onNewChat}
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "icon" }),
-                      "h-9 w-9",
-                    )}
-                  >
-                    <SquarePen size={20} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  New Chat
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Popover open={newChatOpen} onOpenChange={setNewChatOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    "h-9 w-9",
+                  )}
+                >
+                  <SquarePen size={20} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="bottom"
+                align="start"
+                sideOffset={8}
+                className="w-auto p-0 border-0 bg-transparent shadow-none"
+              >
+                <NewChatDialog
+                  open={newChatOpen}
+                  onOpenChange={setNewChatOpen}
+                  onConversationCreated={(id) => {
+                    setNewChatOpen(false);
+                    onNewChatCreated?.(id);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
 
             <TooltipProvider>
               <Tooltip delayDuration={0}>
@@ -93,24 +110,33 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
               </Tooltip>
             </TooltipProvider>
 
-            <TooltipProvider>
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={onNewGroup}
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "icon" }),
-                      "h-9 w-9",
-                    )}
-                  >
-                    <Users size={20} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  New Group
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Popover open={newGroupOpen} onOpenChange={setNewGroupOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    "h-9 w-9",
+                  )}
+                >
+                  <Users size={20} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="bottom"
+                align="start"
+                sideOffset={8}
+                className="w-auto p-0 border-0 bg-transparent shadow-none ml-2"
+              >
+                <NewGroupDialog
+                  open={newGroupOpen}
+                  onOpenChange={setNewGroupOpen}
+                  onGroupCreated={(id) => {
+                    setNewGroupOpen(false);
+                    onGroupCreated?.(id);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       )}
@@ -129,24 +155,33 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
             </Tooltip>
           </TooltipProvider>
 
-          <TooltipProvider>
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onNewChat}
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
-                    "h-9 w-9 flex items-center justify-center",
-                  )}
-                >
-                  <SquarePen size={20} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                New Chat
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Popover open={!newChatOpen ? undefined : newChatOpen} onOpenChange={setNewChatOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon" }),
+                  "h-9 w-9 flex items-center justify-center",
+                )}
+              >
+                <SquarePen size={20} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="right"
+              align="start"
+              sideOffset={8}
+              className="w-auto p-0 border-0 bg-transparent shadow-none ml-2"
+            >
+              <NewChatDialog
+                open={newChatOpen}
+                onOpenChange={setNewChatOpen}
+                onConversationCreated={(id) => {
+                  setNewChatOpen(false);
+                  onNewChatCreated?.(id);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
 
           <TooltipProvider>
             <Tooltip delayDuration={0}>
@@ -170,24 +205,33 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
             </Tooltip>
           </TooltipProvider>
 
-          <TooltipProvider>
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onNewGroup}
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
-                    "h-9 w-9 flex items-center justify-center",
-                  )}
-                >
-                  <Users size={20} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                New Group
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Popover open={newGroupOpen} onOpenChange={setNewGroupOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon" }),
+                  "h-9 w-9 flex items-center justify-center",
+                )}
+              >
+                <Users size={20} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="right"
+              align="start"
+              sideOffset={8}
+              className="w-auto p-0 border-0 bg-transparent shadow-none ml-2"
+            >
+              <NewGroupDialog
+                open={newGroupOpen}
+                onOpenChange={setNewGroupOpen}
+                onGroupCreated={(id) => {
+                  setNewGroupOpen(false);
+                  onGroupCreated?.(id);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       )}
       <nav className="flex-1 overflow-y-auto p-2 grid gap-1 content-start group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:items-center group-[[data-collapsed=true]]:px-2 group-[[data-collapsed=true]]:gap-3">

@@ -100,14 +100,14 @@ export async function createGroupConversation(params: CreateGroupParams): Promis
     throw new Error(errorMessage)
   }
 
-  // Create the group conversation
+  // user1_id/user2_id are for 1-on-1 chats; for groups both point to the creator
+  // (the partial unique index excludes is_group=true rows from the uniqueness check)
   const { data: conversation, error: convError } = await supabase
     .from('conversations')
     .insert({
       is_group: true,
       name: name,
       created_by: createdBy,
-      // For group chats, we don't use user1_id/user2_id, but they're required by schema
       user1_id: createdBy,
       user2_id: createdBy,
     })
@@ -115,8 +115,8 @@ export async function createGroupConversation(params: CreateGroupParams): Promis
     .single()
 
   if (convError) {
-    console.error('Error creating group conversation:', convError)
-    return null
+    console.error('Error creating group conversation:', convError.message, convError.code, convError.details, convError.hint)
+    throw new Error(convError.message || 'Failed to create group conversation')
   }
 
   // First, add creator as admin (must be first so they can add others)
@@ -129,10 +129,9 @@ export async function createGroupConversation(params: CreateGroupParams): Promis
     })
 
   if (creatorError) {
-    console.error('Error adding creator:', creatorError)
-    // Rollback: delete the conversation
+    console.error('Error adding creator:', creatorError.message, creatorError.code)
     await supabase.from('conversations').delete().eq('id', conversation.id)
-    return null
+    throw new Error(creatorError.message || 'Failed to add you as group admin')
   }
 
   // Then add other participants (now creator is admin and can add them)
@@ -150,10 +149,9 @@ export async function createGroupConversation(params: CreateGroupParams): Promis
       .insert(otherParticipants)
 
     if (participantsError) {
-      console.error('Error adding participants:', participantsError)
-      // Rollback: delete the conversation (will cascade delete participants)
+      console.error('Error adding participants:', participantsError.message, participantsError.code)
       await supabase.from('conversations').delete().eq('id', conversation.id)
-      return null
+      throw new Error(participantsError.message || 'Failed to add group members')
     }
   }
 

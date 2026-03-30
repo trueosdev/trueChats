@@ -14,8 +14,6 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { getConversations, subscribeToConversations } from "@/lib/services/conversations";
 import useChatStore from "@/hooks/useChatStore";
 import type { ConversationWithUser } from "@/app/data";
-import { NewChatDialog } from "../new-chat-dialog";
-import { NewGroupDialog } from "../new-group-dialog";
 import { PendingChatsPage } from "../pending-chats-page";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { getUnreadCounts, subscribeToMessages } from "@/lib/services/messages";
@@ -35,8 +33,6 @@ export function ChatLayout({
   const { user, loading: authLoading } = useAuth();
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
   const [isMobile, setIsMobile] = useState(false);
-  const [newChatOpen, setNewChatOpen] = useState(false);
-  const [newGroupOpen, setNewGroupOpen] = useState(false);
   const [showPendingChats, setShowPendingChats] = useState(false);
   const conversations = useChatStore((state) => state.conversations);
   const selectedConversationId = useChatStore((state) => state.selectedConversationId);
@@ -180,16 +176,6 @@ export function ChatLayout({
 
   return (
     <ProtectedRoute>
-      <NewChatDialog
-        open={newChatOpen}
-        onOpenChange={setNewChatOpen}
-        onConversationCreated={handleConversationCreated}
-      />
-      <NewGroupDialog
-        open={newGroupOpen}
-        onOpenChange={setNewGroupOpen}
-        onGroupCreated={handleConversationCreated}
-      />
       <ResizablePanelGroup
         direction="horizontal"
         onLayout={(sizes: number[]) => {
@@ -270,8 +256,8 @@ export function ChatLayout({
               // Clear unread count when selecting a conversation
               setUnreadCount(conversationId, 0);
             }}
-            onNewChat={() => setNewChatOpen(true)}
-            onNewGroup={() => setNewGroupOpen(true)}
+            onNewChatCreated={handleConversationCreated}
+            onGroupCreated={handleConversationCreated}
             onPendingChats={handlePendingChatsClick}
             pendingRequestCount={pendingRequestCount}
           />
