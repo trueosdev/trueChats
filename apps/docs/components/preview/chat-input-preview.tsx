@@ -1,3 +1,5 @@
+"use client";
+
 import { CornerDownLeft, Mic, Paperclip } from "lucide-react";
 import { Button } from "../ui/button";
 import { ChatInput } from "@shadcn-chat/ui";

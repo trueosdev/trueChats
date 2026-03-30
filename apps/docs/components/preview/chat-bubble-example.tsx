@@ -1,3 +1,5 @@
+"use client";
+
 import { DotsVerticalIcon } from "@radix-ui/react-icons";
 import { Forward, Heart } from "lucide-react";
 import {

@@ -1,3 +1,5 @@
+"use client";
+
 import { Copy, RefreshCcw } from "lucide-react";
 import {
   ChatBubble,
