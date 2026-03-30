@@ -92,7 +92,7 @@ export async function getConversations(userId: string): Promise<ConversationWith
     }))
   }
 
-  return allConvs.map((conv: any) => {
+  const mapped = allConvs.map((conv: any) => {
     if (conv.is_group) {
       const participants = allParticipants.filter(p => p.conversation_id === conv.id)
       return {
@@ -139,6 +139,14 @@ export async function getConversations(userId: string): Promise<ConversationWith
       }
     }
   })
+
+  mapped.sort((a, b) => {
+    const aTime = a.last_message?.created_at ?? a.created_at
+    const bTime = b.last_message?.created_at ?? b.created_at
+    return new Date(bTime).getTime() - new Date(aTime).getTime()
+  })
+
+  return mapped
 }
 
 export async function createConversation(user1Id: string, user2Id: string): Promise<Conversation | null> {

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { LogOut, ImageIcon } from "lucide-react";
+import { LogOut, ImageIcon, SettingsIcon } from "lucide-react";
 import { useFrameInset } from "@/components/frame-inset/frame-inset-provider";
 import { signOut } from "@/lib/supabase/auth";
 import { useRouter } from "next/navigation";
@@ -92,6 +92,7 @@ export function UserAvatarMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="cursor-pointer">
+              <SettingsIcon className="mr-2 h-4 w-4" />
               <span>More settings...</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>

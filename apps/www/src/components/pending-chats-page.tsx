@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, X, Mailbox, Coffee } from "lucide-react";
+import { Check, X, Mailbox, Ghost } from "lucide-react";
 import { Avatar } from "./ui/avatar";
 import { ThemeAvatarImage } from "./ui/theme-avatar";
 import { Button } from "./ui/button";
@@ -138,6 +138,79 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
     return `${Math.ceil(hours)} hours`;
   };
 
+  const outgoingAccepted = outgoingRequests.filter((r) => r.status === "accepted");
+  const outgoingPendingOrDenied = outgoingRequests.filter((r) => r.status !== "accepted");
+
+  const renderOutgoingRow = (request: ChatRequest) => {
+    const displayName =
+      request.recipient?.fullname ||
+      request.recipient?.username ||
+      request.recipient?.email ||
+      "Unknown";
+    const cooldown = cooldowns[request.id];
+    const showCooldown =
+      request.status === "denied" && cooldown !== null && cooldown > 0;
+
+    return (
+      <div
+        key={request.id}
+        className={`flex items-center gap-3 p-3 rounded-lg border border-[1px] border-black dark:border-white hover:bg-black/15 dark:hover:bg-white/5 ${
+          request.status === "accepted" ? "cursor-pointer" : ""
+        }`}
+        onClick={() => {
+          if (request.status === "accepted") {
+            handleAcceptedRequestClick(request);
+          }
+        }}
+      >
+        <Avatar className="h-10 w-10">
+          <ThemeAvatarImage
+            avatarUrl={request.recipient?.avatar_url}
+            alt={displayName}
+          />
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-black dark:text-white truncate">
+            {displayName}
+          </p>
+          {request.recipient?.username && (
+            <p className="text-xs text-muted-foreground">
+              @{request.recipient.username}
+            </p>
+          )}
+          {showCooldown && (
+            <p
+              className={`text-xs mt-1 ${isBlackWhite ? "text-foreground" : "text-orange-600 dark:text-orange-400"}`}
+            >
+              Cooldown: {formatCooldown(cooldown)}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center">
+          {request.status === "accepted" ? (
+            <span
+              className={`text-xs px-2 py-1 rounded ${isBlackWhite ? "bg-foreground text-background" : "bg-green-100 text-[#181818]"}`}
+            >
+              Click to open chat
+            </span>
+          ) : (
+            <span
+              className={`text-xs px-2 py-1 rounded ${
+                isBlackWhite
+                  ? "bg-foreground text-background"
+                  : request.status === "pending"
+                    ? "bg-yellow-100 text-[#181818]"
+                    : "bg-red-100 text-[#181818]"
+              }`}
+            >
+              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const handleAcceptedRequestClick = async (request: ChatRequest) => {
     if (!user || request.status !== 'accepted') return;
 
@@ -264,8 +337,8 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
             {incomingRequests.length === 0 ? (
               <div className="flex items-center justify-center h-full min-h-[400px] text-center text-muted-foreground">
                 <div>
-                  <Coffee size={48} className="mx-auto mb-2 opacity-50" />
-                  <p>No pending requests</p>
+                  <Ghost size={48} className="mx-auto mb-2" />
+                  <p>No pending requests. Zilch.</p>
                 </div>
               </div>
             ) : (
@@ -332,71 +405,39 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
               <div className="flex items-center justify-center h-full min-h-[400px] text-center text-muted-foreground">
                 <div>
                   <Mailbox size={48} className="mx-auto mb-2 opacity-50" />
-                  <p>No outgoing requests</p>
+                  <p>No outgoing requests. Zilch.</p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {outgoingRequests.map((request) => {
-                  const displayName = request.recipient?.fullname || request.recipient?.username || request.recipient?.email || "Unknown";
-                  const cooldown = cooldowns[request.id];
-                  const showCooldown = request.status === 'denied' && cooldown !== null && cooldown > 0;
-                  
-                  return (
-                    <div
-                      key={request.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border border-[1px] border-black dark:border-white hover:bg-black/15 dark:hover:bg-white/5 ${
-                        request.status === 'accepted' ? 'cursor-pointer' : ''
-                      }`}
-                      onClick={() => {
-                        if (request.status === 'accepted') {
-                          handleAcceptedRequestClick(request);
-                        }
-                      }}
+              <div className="space-y-8">
+                {outgoingAccepted.length > 0 && (
+                  <section aria-labelledby="outgoing-accepted-heading">
+                    <h2
+                      id="outgoing-accepted-heading"
+                      className="text-sm font-semibold text-black dark:text-white mb-3"
                     >
-                      <Avatar className="h-10 w-10">
-                        <ThemeAvatarImage
-                          avatarUrl={request.recipient?.avatar_url}
-                          alt={displayName}
-                        />
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-black dark:text-white truncate">
-                          {displayName}
-                        </p>
-                        {request.recipient?.username && (
-                          <p className="text-xs text-muted-foreground">
-                            @{request.recipient.username}
-                          </p>
-                        )}
-                        {showCooldown && (
-                          <p className={`text-xs mt-1 ${isBlackWhite ? "text-foreground" : "text-orange-600 dark:text-orange-400"}`}>
-                            Cooldown: {formatCooldown(cooldown)}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center">
-                        {request.status === 'accepted' ? (
-                          <span className={`text-xs px-2 py-1 rounded ${isBlackWhite ? "bg-foreground text-background" : "bg-green-100 text-[#181818]"}`}>
-                            Click to open chat
-                          </span>
-                        ) : (
-                          <span
-                            className={`text-xs px-2 py-1 rounded ${
-                              isBlackWhite
-                                ? "bg-foreground text-background"
-                                : request.status === 'pending'
-                                ? 'bg-yellow-100 text-[#181818]'
-                                : 'bg-red-100 text-[#181818]'
-                            }`}
-                          >
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </span>
-                        )}
-                      </div>
+                      Accepted ({outgoingAccepted.length})
+                    </h2>
+                    <div className="space-y-2">
+                      {outgoingAccepted.map((request) => renderOutgoingRow(request))}
                     </div>
-                  );
-                })}
+                  </section>
+                )}
+                {outgoingPendingOrDenied.length > 0 && (
+                  <section aria-labelledby="outgoing-pending-denied-heading">
+                    <h2
+                      id="outgoing-pending-denied-heading"
+                      className="text-sm font-semibold text-black dark:text-white mb-3"
+                    >
+                      Pending &amp; denied ({outgoingPendingOrDenied.length})
+                    </h2>
+                    <div className="space-y-2">
+                      {outgoingPendingOrDenied.map((request) =>
+                        renderOutgoingRow(request),
+                      )}
+                    </div>
+                  </section>
+                )}
               </div>
             )}
           </div>
