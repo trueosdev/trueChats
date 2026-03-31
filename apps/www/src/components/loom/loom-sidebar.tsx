@@ -3,6 +3,7 @@
 import { Plus, MessageCircle } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RAIL_WIDTH } from '@/lib/layout-constants'
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar'
 import {
   Tooltip,
@@ -35,7 +36,10 @@ export function LoomSidebar({
     "hover:rounded-xl hover:bg-black/60 dark:hover:bg-white/60 hover:shadow-[0_0_8px_2px_rgba(0,0,0,0.03)] dark:hover:shadow-[0_0_8px_2px_rgba(255,255,255,0.03)]"
 
   return (
-    <div className="flex flex-col items-center w-[72px] bg-black/5 dark:bg-white/5 py-3 gap-2 h-full shrink-0 overflow-y-auto">
+    <div
+      className="flex flex-col items-center bg-transparent py-3 gap-2 h-full shrink-0 overflow-y-auto electron-no-drag border-r border-black/10 dark:border-white/10"
+      style={{ width: RAIL_WIDTH }}
+    >
       {/* DMs button */}
       <TooltipProvider>
         <Tooltip delayDuration={0}>
@@ -72,6 +76,7 @@ export function LoomSidebar({
           const FallbackIcon = LucideIcons.Users
           const LoomIcon = Icon || FallbackIcon
           const isSelected = viewMode === 'looms' && selectedLoomId === loom.id
+          const hasImageIcon = Boolean(loom.icon_url)
 
           return (
             <TooltipProvider key={loom.id}>
@@ -88,7 +93,9 @@ export function LoomSidebar({
                         "group w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200",
                         loomHoverEffect,
                         isSelected
-                          ? "bg-black text-white dark:bg-white dark:text-black rounded-xl"
+                          ? hasImageIcon
+                            ? "bg-transparent text-black dark:text-white rounded-xl"
+                            : "bg-black text-white dark:bg-white dark:text-black rounded-xl"
                           : "bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60"
                       )}
                     >

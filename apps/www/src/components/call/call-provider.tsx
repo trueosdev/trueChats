@@ -21,7 +21,7 @@ import {
 } from "@/lib/services/calls";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-export type CallState = "idle" | "outgoing" | "incoming" | "connected";
+export type CallState = "idle" | "connected" | "incoming";
 
 interface CallContextValue {
   callState: CallState;
@@ -31,15 +31,18 @@ interface CallContextValue {
   livekitToken: string | null;
   livekitUrl: string;
   roomName: string | null;
+  isMinimized: boolean;
   startCall: (
     conversationId: string,
     calleeId: string,
     calleeName: string,
     callType: CallType,
   ) => Promise<void>;
-  acceptCall: () => Promise<void>;
-  rejectCall: () => void;
+  joinCall: () => Promise<void>;
+  dismissIncoming: () => void;
   hangUp: () => void;
+  toggleMinimize: () => void;
+  setMinimized: (v: boolean) => void;
 }
 
 const CallContext = createContext<CallContextValue | null>(null);
@@ -56,11 +59,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [roomName, setRoomName] = useState<string | null>(null);
+  const [isMinimized, setMinimized] = useState(false);
 
   const pendingSignalRef = useRef<CallSignal | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  // Refs so the channel callback always sees latest state without re-subscribing
   const callStateRef = useRef(callState);
   callStateRef.current = callState;
   const userRef = useRef(user);
@@ -75,13 +78,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setConversationId(null);
     setLivekitToken(null);
     setRoomName(null);
+    setMinimized(false);
     pendingSignalRef.current = null;
   }, []);
 
   const resetCallRef = useRef(resetCall);
   resetCallRef.current = resetCall;
 
-  // Stable handler that reads state from refs — never causes re-subscription
   const handleSignal = useCallback((signal: CallSignal) => {
     const currentUser = userRef.current;
     if (!currentUser) return;
@@ -90,21 +93,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
     switch (signal.type) {
       case "offer": {
-        if (currentCallState !== "idle") {
-          sendCallSignal(signal.callerId, {
-            ...signal,
-            type: "busy",
-            calleeId: signal.callerId,
-            callerId: currentUser.id,
-            callerName:
-              currentUser.user_metadata?.fullname ||
-              currentUser.user_metadata?.username ||
-              "User",
-            callerAvatar: currentUser.user_metadata?.avatar_url || null,
-            timestamp: new Date().toISOString(),
-          });
-          return;
-        }
+        if (currentCallState !== "idle") return;
         pendingSignalRef.current = signal;
         setCallState("incoming");
         setCallType(signal.callType);
@@ -118,26 +107,24 @@ export function CallProvider({ children }: { children: ReactNode }) {
         break;
       }
       case "answer": {
-        if (currentCallState === "outgoing") {
-          setCallState("connected");
-        }
         break;
       }
       case "reject":
       case "busy": {
-        if (currentCallState === "outgoing") {
+        break;
+      }
+      case "hangup": {
+        if (currentCallState === "connected") {
+          resetCallRef.current();
+        }
+        if (currentCallState === "incoming") {
           resetCallRef.current();
         }
         break;
       }
-      case "hangup": {
-        resetCallRef.current();
-        break;
-      }
     }
-  }, []); // no deps — reads everything from refs
+  }, []);
 
-  // Subscribe once per user, never re-subscribes on state changes
   useEffect(() => {
     if (!user) return;
 
@@ -165,15 +152,16 @@ export function CallProvider({ children }: { children: ReactNode }) {
         user.user_metadata?.username ||
         "User";
 
-      setCallState("outgoing");
       setCallType(type);
       setRemoteUser({ id: calleeId, name: calleeName, avatar: null });
       setConversationId(targetConversationId);
       setRoomName(room);
+      setMinimized(true);
 
       try {
         const token = await getLiveKitToken(room, displayName);
         setLivekitToken(token);
+        setCallState("connected");
 
         await sendCallSignal(calleeId, {
           type: "offer",
@@ -194,7 +182,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     [user, resetCall],
   );
 
-  const acceptCall = useCallback(async () => {
+  const joinCall = useCallback(async () => {
     if (!user || callStateRef.current !== "incoming") return;
 
     const signal = pendingSignalRef.current;
@@ -210,6 +198,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const token = await getLiveKitToken(currentRoomName, displayName);
       setLivekitToken(token);
       setCallState("connected");
+      setMinimized(true);
 
       await sendCallSignal(signal.callerId, {
         ...signal,
@@ -221,19 +210,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
   }, [user, roomName, resetCall]);
 
-  const rejectCall = useCallback(() => {
-    if (!user || callStateRef.current !== "incoming") return;
-
-    const signal = pendingSignalRef.current;
-    if (signal) {
-      sendCallSignal(signal.callerId, {
-        ...signal,
-        type: "reject",
-        timestamp: new Date().toISOString(),
-      });
-    }
+  const dismissIncoming = useCallback(() => {
+    if (callStateRef.current !== "incoming") return;
     resetCall();
-  }, [user, resetCall]);
+  }, [resetCall]);
 
   const hangUp = useCallback(() => {
     if (!user || !remoteUser) return;
@@ -253,6 +233,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     resetCall();
   }, [user, remoteUser, conversationId, callType, roomName, resetCall]);
 
+  const toggleMinimize = useCallback(() => {
+    setMinimized((v) => !v);
+  }, []);
+
   const value = useMemo<CallContextValue>(
     () => ({
       callState,
@@ -262,10 +246,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
       livekitToken,
       livekitUrl,
       roomName,
+      isMinimized,
       startCall,
-      acceptCall,
-      rejectCall,
+      joinCall,
+      dismissIncoming,
       hangUp,
+      toggleMinimize,
+      setMinimized,
     }),
     [
       callState,
@@ -275,10 +262,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
       livekitToken,
       livekitUrl,
       roomName,
+      isMinimized,
       startCall,
-      acceptCall,
-      rejectCall,
+      joinCall,
+      dismissIncoming,
       hangUp,
+      toggleMinimize,
     ],
   );
 

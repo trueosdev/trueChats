@@ -98,6 +98,14 @@
     --frame-inset: 0px;
   }
 
+  html.electron-mac {
+    --electron-titlebar-height: 28px;
+  }
+
+  html:not(.electron-mac) {
+    --electron-titlebar-height: 0px;
+  }
+
   /* Hide scrollbars site-wide */
   * {
     scrollbar-width: none; /* Firefox */
@@ -107,6 +115,23 @@
   *::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
   }
+}
+
+.collapsed-rail {
+  flex: none !important;
+}
+
+@keyframes waveform {
+  0%, 100% { height: 3px; }
+  50% { height: 12px; }
+}
+
+.electron-drag-region {
+  -webkit-app-region: drag;
+}
+
+.electron-no-drag {
+  -webkit-app-region: no-drag;
 }
 
 .text-gradient {

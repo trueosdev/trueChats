@@ -16,6 +16,8 @@ import { BorderAdjustBar } from "@/components/frame-inset/border-adjust-bar";
 import { CallProvider } from "@/components/call/call-provider";
 import { IncomingCallOverlay } from "@/components/call/incoming-call-overlay";
 import { ActiveCallView } from "@/components/call/active-call-view";
+import { MinimizedCallPill } from "@/components/call/minimized-call-pill";
+import { ElectronTitlebar } from "@/components/electron-titlebar";
 
 const questrial = Questrial({
   weight: "400",
@@ -44,11 +46,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={questrial.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ElectronTitlebar />
           <AuthProvider>
             <CallProvider>
               <FrameInsetProvider>
                 <TerminalModeProvider>
-                  <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch p-[var(--frame-inset)] transition-[padding] duration-200 ease-out">
+                  <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch p-[var(--frame-inset)] pt-[max(var(--frame-inset),var(--electron-titlebar-height))] transition-[padding] duration-200 ease-out">
                     {children}
                   </main>
                 </TerminalModeProvider>
@@ -56,6 +59,7 @@ export default function RootLayout({
               </FrameInsetProvider>
               <IncomingCallOverlay />
               <ActiveCallView />
+              <MinimizedCallPill />
             </CallProvider>
           </AuthProvider>
         </ThemeProvider>

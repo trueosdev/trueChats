@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { SquarePen, Mailbox } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RAIL_WIDTH } from "@/lib/layout-constants";
 import { ThemeAvatarImage } from "./ui/theme-avatar";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -44,6 +45,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
     <div
       data-collapsed={isCollapsed}
       className="relative group flex flex-col h-full bg-muted/10 dark:bg-muted/20 overflow-hidden"
+      style={isCollapsed ? { width: RAIL_WIDTH, minWidth: RAIL_WIDTH } : undefined}
     >
       {!isCollapsed && (
         <div className="flex items-center justify-center gap-2 px-2 pt-4 pb-2 shrink-0">
@@ -90,7 +92,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                   >
                     <Mailbox size={23} />
                     {pendingRequestCount > 0 && (
-                      <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-2 border-background rounded-full" />
+                      <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-1 border-background rounded-full" />
                     )}
                   </button>
                 </TooltipTrigger>

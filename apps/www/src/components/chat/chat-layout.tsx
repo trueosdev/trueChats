@@ -19,6 +19,7 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 import { getUnreadCounts, subscribeToMessages } from "@/lib/services/messages";
 import { getPendingRequests, subscribeToChatRequests } from "@/lib/services/chat-requests";
 import { LoomSidebar } from "../loom/loom-sidebar";
+import { RAIL_WIDTH } from "@/lib/layout-constants";
 import { ThreadList } from "../loom/thread-list";
 import { ThreadChat } from "../loom/thread-chat";
 import { CreateLoomDialog } from "../loom/create-loom-dialog";
@@ -45,6 +46,7 @@ export function ChatLayout({
   const [showCreateLoom, setShowCreateLoom] = useState(false);
   const [showCreateThread, setShowCreateThread] = useState(false);
   const [showLoomMembers, setShowLoomMembers] = useState(false);
+  const isSidebarCollapsed = isCollapsed || isMobile;
 
   const conversations = useChatStore((state) => state.conversations);
   const selectedConversationId = useChatStore((state) => state.selectedConversationId);
@@ -257,7 +259,7 @@ export function ChatLayout({
   };
 
   const renderSidebarContent = () => {
-    const collapsed = isCollapsed || isMobile;
+    const collapsed = isSidebarCollapsed;
     const loomNav = viewMode === 'looms' && selectedLoom ? (
       <ThreadList
         loom={selectedLoom}
@@ -273,7 +275,7 @@ export function ChatLayout({
 
     return (
       <Sidebar
-        isCollapsed={isCollapsed || isMobile}
+        isCollapsed={isSidebarCollapsed}
         chats={conversations.filter(conv => !conv.is_group).map((conv) => ({
           id: conv.id,
           name: conv.other_user?.fullname || conv.other_user?.username || conv.other_user?.email || "Unknown",
@@ -389,9 +391,10 @@ export function ChatLayout({
               document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(false)}`;
             }}
             className={cn(
-              isCollapsed &&
-                "min-w-[50px] md:min-w-[70px] transition-all duration-300 ease-in-out",
+              "transition-all duration-300 ease-in-out",
+              isSidebarCollapsed && "collapsed-rail",
             )}
+            style={{ minWidth: RAIL_WIDTH, ...(isSidebarCollapsed ? { width: RAIL_WIDTH } : {}) }}
           >
             {renderSidebarContent()}
           </ResizablePanel>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from 'react'
-import { Hash, Lock, Users, Pin, LineSquiggle, Settings, ChevronLeft, Upload, Camera, Check, Loader2 } from 'lucide-react'
+import { Lock, Users, Pin, LineSquiggle, Settings, ChevronLeft, Camera, Check, Loader2 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '../ui/button'
@@ -214,7 +214,7 @@ export function ThreadList({
                         selectedThreadId === thread.id && "bg-black/10 dark:bg-white/10"
                       )}
                     >
-                      {thread.type === 'private' ? <Lock size={14} /> : <Hash size={14} />}
+                      {thread.type === 'private' ? <Lock size={14} /> : <LineSquiggle size={14} />}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right">{thread.name}</TooltipContent>
@@ -263,7 +263,7 @@ export function ThreadList({
   }
 
   return (
-    <div className="flex flex-col h-full bg-muted/10 dark:bg-muted/20">
+    <div className="flex flex-col h-full bg-white/10 dark:bg-muted/20">
       {/* Loom header */}
       <div className="px-3 pt-4 pb-2 border-b border-black/5 dark:border-white/5 shrink-0">
         <DropdownMenu>
@@ -315,7 +315,7 @@ export function ThreadList({
           ))
         ) : threads.length === 0 ? (
           <div className="text-center py-8 px-4">
-            <p className="text-xs text-black/40 dark:text-white/40">No threads yet</p>
+            <p className="text-xs text-black/30 dark:text-white/30">No threads yet</p>
             <button
               onClick={onCreateThread}
               className="inline-flex items-center gap-1.5 text-xs text-black/45 dark:text-white/45 hover:text-black/65 dark:hover:text-white/65 mt-2"
@@ -360,7 +360,7 @@ export function ThreadList({
             )}
             <button
               onClick={onCreateThread}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors text-sm text-black/45 dark:text-white/45 hover:bg-black/5 dark:hover:bg-white/5 hover:text-black/65 dark:hover:text-white/65 mt-1"
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors text-sm text-black/30 dark:text-white/30 hover:bg-black/5 dark:hover:bg-white/5 hover:text-black/65 dark:hover:text-white/65 mt-1"
             >
               <LineSquiggle size={14} className="shrink-0" />
               <span>New Thread</span>
@@ -510,7 +510,7 @@ function ThreadItem({ thread, selected, onSelect }: {
       {thread.type === 'private' ? (
         <Lock size={14} className="shrink-0" />
       ) : (
-        <Hash size={14} className="shrink-0" />
+        <LineSquiggle size={14} className="shrink-0" />
       )}
       <span className="truncate">{thread.name}</span>
       {thread.is_pinned && <Pin size={10} className="shrink-0 text-black/30 dark:text-white/30" />}

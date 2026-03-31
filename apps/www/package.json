@@ -7,10 +7,16 @@
     "dev:web": "next dev",
     "dev:web:ensure": "sh -c 'if npx wait-on tcp:3000 --timeout 1000; then echo \"[dev:web] Reusing existing Next server on :3000\"; else npm run dev:web; fi'",
     "dev:electron": "wait-on tcp:3000 && electron electron/main.js",
+    "icons:generate": "bash electron/icons/generate-icons.sh electron/icons/icon-source.png 8",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "check-types": "tsc --noEmit"
+  },
+  "build": {
+    "mac": { "icon": "electron/icons/icon.icns" },
+    "win": { "icon": "electron/icons/icon.ico" },
+    "linux": { "icon": "electron/icons/icon.png" }
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
