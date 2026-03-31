@@ -66,6 +66,7 @@ export interface Loom {
   name: string;
   description: string | null;
   icon_name: string | null;
+  icon_url: string | null;
   banner_url: string | null;
   visibility: LoomVisibility;
   created_by: string;

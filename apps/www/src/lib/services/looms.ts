@@ -5,12 +5,13 @@ export interface CreateLoomParams {
   name: string
   description?: string
   iconName?: string
+  iconUrl?: string
   visibility?: LoomVisibility
   createdBy: string
 }
 
 export async function createLoom(params: CreateLoomParams): Promise<Loom | null> {
-  const { name, description, iconName, visibility = 'private', createdBy } = params
+  const { name, description, iconName, iconUrl, visibility = 'private', createdBy } = params
 
   const { data: loom, error: loomError } = await supabase
     .from('looms')
@@ -18,6 +19,7 @@ export async function createLoom(params: CreateLoomParams): Promise<Loom | null>
       name,
       description: description || null,
       icon_name: iconName || 'Users',
+      icon_url: iconUrl || null,
       visibility,
       created_by: createdBy,
     })
@@ -47,6 +49,34 @@ export async function createLoom(params: CreateLoomParams): Promise<Loom | null>
     ...loom,
     member_count: 1,
     thread_count: 0,
+  }
+}
+
+export async function uploadLoomIcon(userId: string, loomId: string, file: File): Promise<string | null> {
+  try {
+    const fileExt = file.name.split('.').pop() || 'jpg'
+    const filePath = `${userId}/loom-icons/${loomId}/icon-${Date.now()}.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+
+    if (uploadError) {
+      console.error('Error uploading loom icon:', uploadError)
+      return null
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath)
+
+    return publicUrl
+  } catch (error) {
+    console.error('Error uploading loom icon:', error)
+    return null
   }
 }
 
@@ -113,7 +143,7 @@ export async function getLoomById(loomId: string): Promise<Loom | null> {
 
 export async function updateLoom(
   loomId: string,
-  updates: { name?: string; description?: string; icon_name?: string; visibility?: LoomVisibility },
+  updates: { name?: string; description?: string; icon_name?: string; icon_url?: string | null; visibility?: LoomVisibility },
   updatedBy: string
 ): Promise<boolean> {
   const role = await getUserLoomRole(loomId, updatedBy)

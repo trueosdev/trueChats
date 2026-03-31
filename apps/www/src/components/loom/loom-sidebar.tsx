@@ -3,6 +3,7 @@
 import { Plus, MessageCircle } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar'
 import {
   Tooltip,
   TooltipContent,
@@ -30,6 +31,9 @@ export function LoomSidebar({
   onCreateLoom,
   loading = false,
 }: LoomSidebarProps) {
+  const loomHoverEffect =
+    "hover:rounded-xl hover:bg-black/60 dark:hover:bg-white/60 hover:shadow-[0_0_8px_2px_rgba(0,0,0,0.03)] dark:hover:shadow-[0_0_8px_2px_rgba(255,255,255,0.03)]"
+
   return (
     <div className="flex flex-col items-center w-[72px] bg-black/5 dark:bg-white/5 py-3 gap-2 h-full shrink-0 overflow-y-auto">
       {/* DMs button */}
@@ -40,9 +44,10 @@ export function LoomSidebar({
               onClick={onDmsSelect}
               className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200",
+                loomHoverEffect,
                 viewMode === 'dms'
                   ? "bg-black text-white dark:bg-white dark:text-black rounded-xl"
-                  : "bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60 hover:bg-black/20 dark:hover:bg-white/20 hover:rounded-xl"
+                  : "bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60"
               )}
             >
               <MessageCircle size={22} />
@@ -80,13 +85,23 @@ export function LoomSidebar({
                     <button
                       onClick={() => onLoomSelect(loom.id)}
                       className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200",
+                        "group w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200",
+                        loomHoverEffect,
                         isSelected
                           ? "bg-black text-white dark:bg-white dark:text-black rounded-xl"
-                          : "bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60 hover:bg-black/20 dark:hover:bg-white/20 hover:rounded-xl"
+                          : "bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60"
                       )}
                     >
-                      <LoomIcon size={22} />
+                      {loom.icon_url ? (
+                        <Avatar className="h-12 w-12 rounded-2xl transition-all duration-200 group-hover:rounded-xl">
+                          <AvatarImage src={loom.icon_url} alt={loom.name} className="transition-all duration-200 group-hover:rounded-xl" />
+                          <AvatarFallback className="rounded-2xl transition-all duration-200 group-hover:rounded-xl bg-black/10 dark:bg-white/10">
+                            <LoomIcon size={18} />
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <LoomIcon size={22} />
+                      )}
                     </button>
                   </div>
                 </TooltipTrigger>
@@ -108,7 +123,10 @@ export function LoomSidebar({
           <TooltipTrigger asChild>
             <button
               onClick={onCreateLoom}
-              className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 hover:text-black/60 dark:hover:text-white/60 hover:rounded-xl transition-all duration-200"
+              className={cn(
+                "w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 flex items-center justify-center hover:text-black/60 dark:hover:text-white/60 hover:rounded-xl transition-all duration-200",
+                loomHoverEffect
+              )}
             >
               <Plus size={22} />
             </button>

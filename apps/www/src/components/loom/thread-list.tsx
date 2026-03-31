@@ -1,6 +1,7 @@
 "use client"
 
-import { Hash, Lock, Users, Pin, LineSquiggle, Settings } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Hash, Lock, Users, Pin, LineSquiggle, Settings, ChevronLeft, Upload, Camera, Check, Loader2 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '../ui/button'
@@ -14,8 +15,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
+import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar'
+import { useAuth } from '@/hooks/useAuth'
+import { updateLoom, uploadLoomIcon } from '@/lib/services/looms'
 import type { Loom, Thread } from '@/app/data'
 
 interface ThreadListProps {
@@ -39,6 +44,17 @@ export function ThreadList({
   loading = false,
   isCollapsed = false,
 }: ThreadListProps) {
+  const { user } = useAuth()
+  const [sidebarView, setSidebarView] = useState<'threads' | 'settings'>('threads')
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null)
+  const [selectedPhotoPreview, setSelectedPhotoPreview] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
   const pinnedThreads = threads.filter(t => t.is_pinned)
   const regularThreads = threads.filter(t => !t.is_pinned)
   const LoomIcon = (() => {
@@ -46,6 +62,99 @@ export function ThreadList({
     const Icon = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ size?: number; className?: string }>
     return Icon || Users
   })()
+
+  const openSettings = () => {
+    setSidebarView('settings')
+    setEditName(loom.name || '')
+    setEditDescription(loom.description || '')
+    setSelectedPhotoFile(null)
+    setSelectedPhotoPreview(null)
+    setSettingsError(null)
+    setSaveSuccess(false)
+  }
+
+  const closeSettings = () => {
+    if (saving) return
+    setSidebarView('threads')
+    setSettingsError(null)
+    setSaveSuccess(false)
+  }
+
+  const handlePhotoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!validTypes.includes(file.type)) {
+      setSettingsError('Please select a valid image (JPEG, PNG, or WebP).')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSettingsError('File size must be less than 5 MB.')
+      return
+    }
+
+    setSettingsError(null)
+    setSelectedPhotoFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setSelectedPhotoPreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const removePhoto = () => {
+    setSelectedPhotoFile(null)
+    setSelectedPhotoPreview('__remove__')
+    if (photoInputRef.current) photoInputRef.current.value = ''
+  }
+
+  const saveSettings = async () => {
+    if (!user) return
+
+    const trimmedName = editName.trim()
+    if (!trimmedName) {
+      setSettingsError('Name cannot be empty.')
+      return
+    }
+
+    setSaving(true)
+    setSettingsError(null)
+    setSaveSuccess(false)
+
+    const updates: { name?: string; icon_url?: string | null; description?: string } = {}
+
+    if (trimmedName !== loom.name) updates.name = trimmedName
+    if (editDescription.trim() !== (loom.description || '')) updates.description = editDescription.trim()
+
+    if (selectedPhotoFile) {
+      const uploadedUrl = await uploadLoomIcon(String(user.id), loom.id, selectedPhotoFile)
+      if (!uploadedUrl) {
+        setSettingsError('Failed to upload photo.')
+        setSaving(false)
+        return
+      }
+      updates.icon_url = uploadedUrl
+    } else if (selectedPhotoPreview === '__remove__') {
+      updates.icon_url = null
+    }
+
+    if (Object.keys(updates).length === 0) {
+      setSaving(false)
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 1500)
+      return
+    }
+
+    const ok = await updateLoom(loom.id, updates, String(user.id))
+    if (!ok) {
+      setSettingsError('Failed to save. Check your permissions.')
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
+    setSaveSuccess(true)
+    setTimeout(() => setSaveSuccess(false), 1500)
+  }
 
   if (isCollapsed) {
     return (
@@ -56,7 +165,16 @@ export function ThreadList({
               <DropdownMenuTrigger asChild>
                 <TooltipTrigger asChild>
                   <button className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center shrink-0 hover:bg-black/15 dark:hover:bg-white/15 transition-colors">
-                    <LoomIcon size={16} className="text-black dark:text-white" />
+                    {loom.icon_url ? (
+                      <Avatar className="h-8 w-8 rounded-lg">
+                        <AvatarImage src={loom.icon_url} alt={loom.name} />
+                        <AvatarFallback className="rounded-lg bg-black/10 dark:bg-white/10">
+                          <LoomIcon size={16} className="text-black dark:text-white" />
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <LoomIcon size={16} className="text-black dark:text-white" />
+                    )}
                   </button>
                 </TooltipTrigger>
               </DropdownMenuTrigger>
@@ -65,9 +183,10 @@ export function ThreadList({
                   <Users size={14} className="mr-2" />
                   <span>Add Members</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={openSettings}>
                   <Settings size={14} className="mr-2" />
-                  <span>Settings (Soon)</span>
+                  <span>Settings</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -151,7 +270,16 @@ export function ThreadList({
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
               <div className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center shrink-0">
-                <LoomIcon size={16} className="text-black dark:text-white" />
+                {loom.icon_url ? (
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarImage src={loom.icon_url} alt={loom.name} />
+                    <AvatarFallback className="rounded-lg bg-black/10 dark:bg-white/10">
+                      <LoomIcon size={16} className="text-black dark:text-white" />
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <LoomIcon size={16} className="text-black dark:text-white" />
+                )}
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <h2 className="text-sm font-semibold text-black dark:text-white truncate">{loom.name}</h2>
@@ -166,15 +294,17 @@ export function ThreadList({
               <Users size={14} className="mr-2" />
               <span>Add Members</span>
             </DropdownMenuItem>
-            <DropdownMenuItem disabled>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={openSettings}>
               <Settings size={14} className="mr-2" />
-              <span>Settings (Soon)</span>
+              <span>Settings</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       {/* Thread list */}
+      {sidebarView === 'threads' ? (
       <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -238,6 +368,126 @@ export function ThreadList({
           </>
         )}
       </nav>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          {/* Settings header */}
+          <div className="flex items-center gap-2 px-3 py-3 border-b border-black/5 dark:border-white/5">
+            <button
+              onClick={closeSettings}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-7 w-7 shrink-0')}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <h3 className="text-sm font-semibold text-black dark:text-white">Loom Settings</h3>
+          </div>
+
+          <div className="px-4 py-4 space-y-5">
+            {/* Photo section */}
+            <div className="flex flex-col items-center gap-3">
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handlePhotoFileSelect}
+                className="hidden"
+              />
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                className="relative group"
+              >
+                <div className="w-20 h-20 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/15 dark:border-white/15 flex items-center justify-center overflow-hidden transition-colors group-hover:border-black/30 dark:group-hover:border-white/30">
+                  {selectedPhotoPreview && selectedPhotoPreview !== '__remove__' ? (
+                    <img src={selectedPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : loom.icon_url && selectedPhotoPreview !== '__remove__' ? (
+                    <img src={loom.icon_url} alt={loom.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <LoomIcon size={28} className="text-black/30 dark:text-white/30" />
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+                  <Camera size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  className="text-xs text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white transition-colors"
+                >
+                  Upload
+                </button>
+                {(loom.icon_url || (selectedPhotoPreview && selectedPhotoPreview !== '__remove__')) && (
+                  <>
+                    <span className="text-black/20 dark:text-white/20">|</span>
+                    <button
+                      onClick={removePhoto}
+                      className="text-xs text-black/50 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Name field */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
+                Loom Name
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Give your Loom a name"
+                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/30 dark:focus:border-white/30 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25"
+              />
+            </div>
+
+            {/* Description field */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
+                Description
+              </label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+                placeholder="What's this Loom about?"
+                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/30 dark:focus:border-white/30 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25 resize-none"
+              />
+            </div>
+
+            {/* Error */}
+            {settingsError && (
+              <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{settingsError}</p>
+            )}
+
+            {/* Save button */}
+            <button
+              onClick={saveSettings}
+              disabled={saving}
+              className={cn(
+                buttonVariants({ variant: 'default' }),
+                'w-full h-9 gap-2'
+              )}
+            >
+              {saving ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Saving...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <Check size={14} />
+                  Saved
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

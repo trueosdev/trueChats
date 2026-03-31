@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"npm:dev:web:ensure\" \"npm:dev:electron\"",
+    "dev:web": "next dev",
+    "dev:web:ensure": "sh -c 'if npx wait-on tcp:3000 --timeout 1000; then echo \"[dev:web] Reusing existing Next server on :3000\"; else npm run dev:web; fi'",
+    "dev:electron": "wait-on tcp:3000 && electron electron/main.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -48,6 +51,8 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^37.4.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -57,6 +62,7 @@
     "eslint-config-next": "16.0.7",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^8.0.5"
   }
 }

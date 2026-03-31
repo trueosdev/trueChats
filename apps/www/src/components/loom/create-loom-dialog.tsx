@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { ArrowLeft, Search, X, Globe, Lock, Mail } from 'lucide-react'
+import { ArrowLeft, Search, X, Globe, Lock, Mail, Image as ImageIcon, Shapes } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { Button } from '../ui/button'
 import { createLoom } from '@/lib/services/looms'
@@ -31,7 +31,9 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [visibility, setVisibility] = useState<LoomVisibility>('private')
+  const [iconType, setIconType] = useState<'icon' | 'photo'>('icon')
   const [iconName, setIconName] = useState('Users')
+  const [iconUrl, setIconUrl] = useState('')
   const [iconSearch, setIconSearch] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,7 +50,8 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
       const loom = await createLoom({
         name: name.trim(),
         description: description.trim() || undefined,
-        iconName,
+        iconName: iconType === 'icon' ? iconName : undefined,
+        iconUrl: iconType === 'photo' ? iconUrl.trim() || undefined : undefined,
         visibility,
         createdBy: String(user.id),
       })
@@ -68,7 +71,9 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
     setName('')
     setDescription('')
     setVisibility('private')
+    setIconType('icon')
     setIconName('Users')
+    setIconUrl('')
     setIconSearch('')
     setStep('name')
     setError(null)
@@ -113,13 +118,21 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
               {/* Icon preview + picker trigger */}
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => setStep('icon')}
+                  onClick={() => iconType === 'icon' && setStep('icon')}
                   className="w-16 h-16 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/20 dark:border-white/20 flex items-center justify-center hover:border-black/40 dark:hover:border-white/40 transition-colors shrink-0"
                 >
-                  {(() => {
-                    const Icon = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ size?: number; className?: string }>
-                    return Icon ? <Icon size={28} className="text-black/60 dark:text-white/60" /> : null
-                  })()}
+                  {iconType === 'photo' && iconUrl.trim() ? (
+                    <img
+                      src={iconUrl}
+                      alt="Loom icon preview"
+                      className="w-14 h-14 rounded-xl object-cover"
+                    />
+                  ) : (
+                    (() => {
+                      const Icon = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ size?: number; className?: string }>
+                      return Icon ? <Icon size={28} className="text-black/60 dark:text-white/60" /> : null
+                    })()
+                  )}
                 </button>
                 <div className="flex-1">
                   <input
@@ -130,9 +143,56 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
                     autoFocus
                     className="w-full bg-transparent text-lg font-medium outline-none border-none text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
                   />
-                  <p className="text-xs text-black/40 dark:text-white/40 mt-0.5">Click icon to customize</p>
+                  <p className="text-xs text-black/40 dark:text-white/40 mt-0.5">
+                    {iconType === 'icon' ? 'Click icon to customize' : 'Photo icon selected'}
+                  </p>
                 </div>
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black/60 dark:text-white/60 mb-2 uppercase tracking-wide">
+                  Loom Icon Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setIconType('icon')}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                      iconType === 'icon'
+                        ? 'bg-black/10 dark:bg-white/10 text-black dark:text-white'
+                        : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    <Shapes size={15} />
+                    <span>Icon</span>
+                  </button>
+                  <button
+                    onClick={() => setIconType('photo')}
+                    className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                      iconType === 'photo'
+                        ? 'bg-black/10 dark:bg-white/10 text-black dark:text-white'
+                        : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    <ImageIcon size={15} />
+                    <span>Photo</span>
+                  </button>
+                </div>
+              </div>
+
+              {iconType === 'photo' && (
+                <div>
+                  <label className="block text-xs font-medium text-black/60 dark:text-white/60 mb-1.5 uppercase tracking-wide">
+                    Photo URL
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={iconUrl}
+                    onChange={(e) => setIconUrl(e.target.value)}
+                    className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/30 dark:focus:border-white/30 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-black/60 dark:text-white/60 mb-1.5 uppercase tracking-wide">
@@ -183,7 +243,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
             <div className="px-5 py-3 border-t border-black/10 dark:border-white/10">
               <Button
                 onClick={handleCreate}
-                disabled={creating || !name.trim()}
+                disabled={creating || !name.trim() || (iconType === 'photo' && !iconUrl.trim())}
                 className="w-full"
               >
                 {creating ? 'Creating...' : 'Create Loom'}

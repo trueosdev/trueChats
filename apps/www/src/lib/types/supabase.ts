@@ -90,6 +90,7 @@ export interface Database {
           name: string
           description: string | null
           icon_name: string | null
+          icon_url: string | null
           banner_url: string | null
           visibility: 'public' | 'private' | 'invite_only'
           created_by: string
@@ -100,6 +101,7 @@ export interface Database {
           name: string
           description?: string | null
           icon_name?: string | null
+          icon_url?: string | null
           banner_url?: string | null
           visibility?: 'public' | 'private' | 'invite_only'
           created_by: string
@@ -110,6 +112,7 @@ export interface Database {
           name?: string
           description?: string | null
           icon_name?: string | null
+          icon_url?: string | null
           banner_url?: string | null
           visibility?: 'public' | 'private' | 'invite_only'
           created_by?: string
