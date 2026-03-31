@@ -27,10 +27,8 @@ export const chatCommand: CommandHandler = {
           "",
         ];
 
-        for (const conv of conversations) {
-          const name = conv.is_group 
-            ? (conv.name || "Group") 
-            : (conv.other_user?.fullname || conv.other_user?.username || "Unknown");
+        for (const conv of conversations.filter(c => !c.is_group)) {
+          const name = conv.other_user?.fullname || conv.other_user?.username || "Unknown";
           const lastMsg = conv.last_message?.content.slice(0, 50) || "No messages";
           lines.push(`  [${conv.id.slice(0, 8)}] ${name} - ${lastMsg}`);
         }
@@ -56,10 +54,7 @@ export const chatCommand: CommandHandler = {
           context.setCurrentConversationId(conversation.id);
           context.store.setSelectedConversationId(conversation.id);
           
-          const name = conversation.is_group 
-            ? (conversation.name || "Group") 
-            : (conversation.other_user?.fullname || conversation.other_user?.username || "Unknown");
-          
+          const name = conversation.other_user?.fullname || conversation.other_user?.username || "Unknown";
           return [`Opened conversation: ${name}`];
         } else {
           return [`Conversation '${identifier}' not found.`];

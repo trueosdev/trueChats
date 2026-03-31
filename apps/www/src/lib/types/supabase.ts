@@ -84,6 +84,154 @@ export interface Database {
           content?: string
         }
       }
+      looms: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          icon_name: string | null
+          banner_url: string | null
+          visibility: 'public' | 'private' | 'invite_only'
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          icon_name?: string | null
+          banner_url?: string | null
+          visibility?: 'public' | 'private' | 'invite_only'
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          icon_name?: string | null
+          banner_url?: string | null
+          visibility?: 'public' | 'private' | 'invite_only'
+          created_by?: string
+          created_at?: string
+        }
+      }
+      loom_members: {
+        Row: {
+          id: string
+          loom_id: string
+          user_id: string
+          role: 'owner' | 'admin' | 'moderator' | 'member'
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          loom_id: string
+          user_id: string
+          role?: 'owner' | 'admin' | 'moderator' | 'member'
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          loom_id?: string
+          user_id?: string
+          role?: 'owner' | 'admin' | 'moderator' | 'member'
+          joined_at?: string
+        }
+      }
+      threads: {
+        Row: {
+          id: string
+          loom_id: string
+          name: string
+          description: string | null
+          icon_emoji: string | null
+          type: 'open' | 'private'
+          is_pinned: boolean
+          is_archived: boolean
+          created_by: string
+          created_at: string
+          last_message: {
+            id: string
+            content: string
+            sender_id: string
+            created_at: string
+          } | null
+        }
+        Insert: {
+          id?: string
+          loom_id: string
+          name: string
+          description?: string | null
+          icon_emoji?: string | null
+          type?: 'open' | 'private'
+          is_pinned?: boolean
+          is_archived?: boolean
+          created_by: string
+          created_at?: string
+          last_message?: any
+        }
+        Update: {
+          id?: string
+          loom_id?: string
+          name?: string
+          description?: string | null
+          icon_emoji?: string | null
+          type?: 'open' | 'private'
+          is_pinned?: boolean
+          is_archived?: boolean
+          created_by?: string
+          created_at?: string
+          last_message?: any
+        }
+      }
+      thread_messages: {
+        Row: {
+          id: string
+          thread_id: string
+          sender_id: string
+          content: string
+          created_at: string
+          read_at: string | null
+          reply_to: string | null
+          edited_at: string | null
+          likes: string[]
+          attachment_url: string | null
+          attachment_type: string | null
+          attachment_name: string | null
+          attachment_size: number | null
+        }
+        Insert: {
+          id?: string
+          thread_id: string
+          sender_id?: string
+          content: string
+          created_at?: string
+          read_at?: string | null
+          reply_to?: string | null
+          edited_at?: string | null
+          likes?: string[]
+          attachment_url?: string | null
+          attachment_type?: string | null
+          attachment_name?: string | null
+          attachment_size?: number | null
+        }
+        Update: {
+          id?: string
+          thread_id?: string
+          sender_id?: string
+          content?: string
+          created_at?: string
+          read_at?: string | null
+          reply_to?: string | null
+          edited_at?: string | null
+          likes?: string[]
+          attachment_url?: string | null
+          attachment_type?: string | null
+          attachment_name?: string | null
+          attachment_size?: number | null
+        }
+      }
     }
     Views: {
       users: {

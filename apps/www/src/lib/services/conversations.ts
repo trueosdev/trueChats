@@ -3,7 +3,6 @@ import type { Conversation } from '@/lib/types/supabase'
 import type { ConversationWithUser } from '@/app/data'
 
 export async function getConversations(userId: string): Promise<ConversationWithUser[]> {
-  // Get 1-on-1 conversations
   const { data: directConvs, error: directError } = await supabase
     .from('conversations')
     .select('*')
@@ -12,42 +11,13 @@ export async function getConversations(userId: string): Promise<ConversationWith
     .order('created_at', { ascending: false })
 
   if (directError) {
-    console.error('Error fetching direct conversations:', directError)
+    console.error('Error fetching conversations:', directError)
   }
 
-  // Get group conversations via participants
-  const { data: groupParticipants, error: groupError } = await supabase
-    .from('conversation_participants')
-    .select('conversation_id')
-    .eq('user_id', userId)
+  const allConvs = directConvs || []
 
-  if (groupError) {
-    console.error('Error fetching group participants:', groupError)
-  }
-
-  const groupConvIds = (groupParticipants || []).map(p => p.conversation_id)
-  let groupConvs: any[] = []
-  
-  if (groupConvIds.length > 0) {
-    const { data, error: groupConvsError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('is_group', true)
-      .in('id', groupConvIds)
-      .order('created_at', { ascending: false })
-
-    if (groupConvsError) {
-      console.error('Error fetching group conversations:', groupConvsError)
-    } else {
-      groupConvs = data || []
-    }
-  }
-
-  const allConvs = [...(directConvs || []), ...groupConvs]
-
-  // Fetch user details for 1-on-1 chats
   const userIds = new Set<string>()
-  directConvs?.forEach((conv: any) => {
+  allConvs.forEach((conv: any) => {
     userIds.add(conv.user1_id)
     userIds.add(conv.user2_id)
   })
@@ -59,84 +29,32 @@ export async function getConversations(userId: string): Promise<ConversationWith
 
   const userMap = new Map((users || []).map((u: any) => [u.id, u]))
 
-  // For group chats, fetch participants
-  const groupConvIdsForParticipants = groupConvs.map(c => c.id)
-  let allParticipants: any[] = []
-  
-  if (groupConvIdsForParticipants.length > 0) {
-    const { data: participants } = await supabase
-      .from('conversation_participants')
-      .select('*')
-      .in('conversation_id', groupConvIdsForParticipants)
-
-    allParticipants = participants || []
-
-    // Fetch user details for participants
-    const participantUserIds = new Set(allParticipants.map(p => p.user_id))
-    const { data: participantUsers } = await supabase
-      .from('users')
-      .select('id, username, fullname, avatar_url, email')
-      .in('id', Array.from(participantUserIds))
-
-    const participantUserMap = new Map((participantUsers || []).map((u: any) => [u.id, u]))
-    
-    allParticipants = allParticipants.map(p => ({
-      ...p,
-      user: participantUserMap.get(p.user_id) || {
-        id: p.user_id,
-        username: null,
-        fullname: null,
-        avatar_url: null,
-        email: '',
-      },
-    }))
-  }
-
   const mapped = allConvs.map((conv: any) => {
-    if (conv.is_group) {
-      const participants = allParticipants.filter(p => p.conversation_id === conv.id)
-      return {
-        id: conv.id,
-        created_at: conv.created_at,
-        user1_id: conv.user1_id,
-        user2_id: conv.user2_id,
-        is_group: conv.is_group,
-        name: conv.name,
-        created_by: conv.created_by,
-        icon_name: conv.icon_name || null,
-        last_message: conv.last_message,
-        participants: participants,
-        participant_count: participants.length,
-      }
-    } else {
-      // 1-on-1 conversation
-      const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id
-      const otherUser = userMap.get(otherUserId) || {
-        id: otherUserId,
-        username: null,
-        fullname: null,
-        avatar_url: null,
-        email: '',
-      }
+    const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id
+    const otherUser = userMap.get(otherUserId) || {
+      id: otherUserId,
+      username: null,
+      fullname: null,
+      avatar_url: null,
+      email: '',
+    }
 
-      return {
-        id: conv.id,
-        created_at: conv.created_at,
-        user1_id: conv.user1_id,
-        user2_id: conv.user2_id,
-        is_group: conv.is_group,
-        name: conv.name,
-        created_by: conv.created_by,
-        icon_name: (conv as any).icon_name || null,
-        last_message: conv.last_message,
-        other_user: {
-          id: otherUser.id,
-          username: otherUser.username,
-          fullname: otherUser.fullname,
-          avatar_url: otherUser.avatar_url,
-          email: otherUser.email,
-        },
-      }
+    return {
+      id: conv.id,
+      created_at: conv.created_at,
+      user1_id: conv.user1_id,
+      user2_id: conv.user2_id,
+      is_group: false,
+      name: conv.name,
+      created_by: conv.created_by,
+      last_message: conv.last_message,
+      other_user: {
+        id: otherUser.id,
+        username: otherUser.username,
+        fullname: otherUser.fullname,
+        avatar_url: otherUser.avatar_url,
+        email: otherUser.email,
+      },
     }
   })
 
@@ -150,7 +68,6 @@ export async function getConversations(userId: string): Promise<ConversationWith
 }
 
 export async function createConversation(user1Id: string, user2Id: string): Promise<Conversation | null> {
-  // Check if conversation already exists
   const { data: existing } = await supabase
     .from('conversations')
     .select('*')
@@ -211,70 +128,31 @@ export function subscribeToConversations(
       },
       async (payload) => {
         const conv = payload.new as any
-        
-        if (conv.is_group) {
-          // For group chats, fetch participants
-          const { data: participants } = await supabase
-            .from('conversation_participants')
-            .select('*')
-            .eq('conversation_id', conv.id)
+        if (conv.is_group) return
 
-          const userIds = (participants || []).map(p => p.user_id)
-          const { data: users } = await supabase
-            .from('users')
-            .select('id, username, fullname, avatar_url, email')
-            .in('id', userIds)
+        const { data: user2 } = await supabase
+          .from('users')
+          .select('id, username, fullname, avatar_url, email')
+          .eq('id', conv.user2_id)
+          .single()
 
-          const userMap = new Map((users || []).map((u: any) => [u.id, u]))
-
-          callback({
-            id: conv.id,
-            created_at: conv.created_at,
-            user1_id: conv.user1_id,
-            user2_id: conv.user2_id,
-            is_group: conv.is_group,
-            name: conv.name,
-            created_by: conv.created_by,
-            icon_name: conv.icon_name || null,
-            last_message: conv.last_message,
-            participants: (participants || []).map((p: any) => ({
-              ...p,
-              user: userMap.get(p.user_id) || {
-                id: p.user_id,
-                username: null,
-                fullname: null,
-                avatar_url: null,
-                email: '',
-              },
-            })),
-            participant_count: (participants || []).length,
-          })
-        } else {
-          // For 1-on-1 chats
-          const { data: user2 } = await supabase
-            .from('users')
-            .select('id, username, fullname, avatar_url, email')
-            .eq('id', conv.user2_id)
-            .single()
-
-          callback({
-            id: conv.id,
-            created_at: conv.created_at,
-            user1_id: conv.user1_id,
-            user2_id: conv.user2_id,
-            is_group: conv.is_group,
-            name: conv.name,
-            created_by: conv.created_by,
-            last_message: conv.last_message,
-            other_user: user2 || {
-              id: conv.user2_id,
-              username: null,
-              fullname: null,
-              avatar_url: null,
-              email: '',
-            },
-          })
-        }
+        callback({
+          id: conv.id,
+          created_at: conv.created_at,
+          user1_id: conv.user1_id,
+          user2_id: conv.user2_id,
+          is_group: false,
+          name: conv.name,
+          created_by: conv.created_by,
+          last_message: conv.last_message,
+          other_user: user2 || {
+            id: conv.user2_id,
+            username: null,
+            fullname: null,
+            avatar_url: null,
+            email: '',
+          },
+        })
       }
     )
     .on(
@@ -287,70 +165,31 @@ export function subscribeToConversations(
       },
       async (payload) => {
         const conv = payload.new as any
-        
-        if (conv.is_group) {
-          // For group chats, fetch participants
-          const { data: participants } = await supabase
-            .from('conversation_participants')
-            .select('*')
-            .eq('conversation_id', conv.id)
+        if (conv.is_group) return
 
-          const userIds = (participants || []).map(p => p.user_id)
-          const { data: users } = await supabase
-            .from('users')
-            .select('id, username, fullname, avatar_url, email')
-            .in('id', userIds)
+        const { data: user1 } = await supabase
+          .from('users')
+          .select('id, username, fullname, avatar_url, email')
+          .eq('id', conv.user1_id)
+          .single()
 
-          const userMap = new Map((users || []).map((u: any) => [u.id, u]))
-
-          callback({
-            id: conv.id,
-            created_at: conv.created_at,
-            user1_id: conv.user1_id,
-            user2_id: conv.user2_id,
-            is_group: conv.is_group,
-            name: conv.name,
-            created_by: conv.created_by,
-            icon_name: conv.icon_name || null,
-            last_message: conv.last_message,
-            participants: (participants || []).map((p: any) => ({
-              ...p,
-              user: userMap.get(p.user_id) || {
-                id: p.user_id,
-                username: null,
-                fullname: null,
-                avatar_url: null,
-                email: '',
-              },
-            })),
-            participant_count: (participants || []).length,
-          })
-        } else {
-          // For 1-on-1 chats
-          const { data: user1 } = await supabase
-            .from('users')
-            .select('id, username, fullname, avatar_url, email')
-            .eq('id', conv.user1_id)
-            .single()
-
-          callback({
-            id: conv.id,
-            created_at: conv.created_at,
-            user1_id: conv.user1_id,
-            user2_id: conv.user2_id,
-            is_group: conv.is_group,
-            name: conv.name,
-            created_by: conv.created_by,
-            last_message: conv.last_message,
-            other_user: user1 || {
-              id: conv.user1_id,
-              username: null,
-              fullname: null,
-              avatar_url: null,
-              email: '',
-            },
-          })
-        }
+        callback({
+          id: conv.id,
+          created_at: conv.created_at,
+          user1_id: conv.user1_id,
+          user2_id: conv.user2_id,
+          is_group: false,
+          name: conv.name,
+          created_by: conv.created_by,
+          last_message: conv.last_message,
+          other_user: user1 || {
+            id: conv.user1_id,
+            username: null,
+            fullname: null,
+            avatar_url: null,
+            email: '',
+          },
+        })
       }
     )
     .subscribe()
@@ -359,4 +198,3 @@ export function subscribeToConversations(
     supabase.removeChannel(channel)
   }
 }
-

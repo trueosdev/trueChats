@@ -9,9 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { subscribeToTypingIndicator } from "@/lib/services/presence";
 import type { TypingState } from "@/lib/services/presence";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { GroupMembersDialog } from "../group-members-dialog";
 import { MessageSearchDialog } from "../message-search-dialog";
-import { EditGroupDialog } from "../edit-group-dialog";
 
 interface ChatProps {
   conversation: ConversationWithUser;
@@ -23,45 +21,33 @@ export function Chat({ conversation, isMobile }: ChatProps) {
   const messages = useChatStore((state) => state.messages);
   const setMessages = useChatStore((state) => state.setMessages);
   const addMessage = useChatStore((state) => state.addMessage);
-  const updateMessage = useChatStore((state) => state.updateMessage);
   const setLoading = useChatStore((state) => state.setLoading);
   const [typingUsers, setTypingUsers] = useState<TypingState[]>([]);
   const [typingChannel, setTypingChannel] = useState<RealtimeChannel | null>(null);
-  const [showMembers, setShowMembers] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [showEditGroup, setShowEditGroup] = useState(false);
 
   useEffect(() => {
     if (!conversation || !user) return;
 
-    // Load messages
     setLoading(true);
     getMessages(conversation.id).then((data) => {
       setMessages(data);
       setLoading(false);
-      // Mark messages as read when loading
       markMessagesAsRead(conversation.id, user.id).then(() => {
-        // Clear unread count in store
         useChatStore.getState().setUnreadCount(conversation.id, 0);
       });
     });
 
-    // Subscribe to real-time message updates
     const unsubscribe = subscribeToMessages(conversation.id, (message) => {
-      // Check if message exists (for updates like read receipts)
-      // Use functional update to get current messages
-      addMessage(message); // The store already handles duplicates
+      addMessage(message);
       
-      // Mark new messages as read if they're from other user
       if (message.sender_id !== user.id) {
         markMessagesAsRead(conversation.id, user.id).then(() => {
-          // Clear unread count in store
           useChatStore.getState().setUnreadCount(conversation.id, 0);
         });
       }
     });
 
-    // Subscribe to typing indicators
     const channel = subscribeToTypingIndicator(
       conversation.id,
       user.id,
@@ -84,7 +70,6 @@ export function Chat({ conversation, isMobile }: ChatProps) {
     <div className="flex flex-col justify-between w-full h-full">
       <ChatTopbar 
         conversation={conversation}
-        onShowMembers={conversation.is_group ? () => setShowMembers(true) : undefined}
         onShowSearch={() => setShowSearch(true)}
       />
 
@@ -101,40 +86,12 @@ export function Chat({ conversation, isMobile }: ChatProps) {
         typingChannel={typingChannel}
       />
 
-      {conversation.is_group && (
-        <>
-          <GroupMembersDialog
-            open={showMembers}
-            onOpenChange={setShowMembers}
-            conversationId={conversation.id}
-            conversationName={conversation.name || "Unnamed Group"}
-            onEditGroup={() => {
-              setShowMembers(false)
-              setShowEditGroup(true)
-            }}
-          />
-          <EditGroupDialog
-            open={showEditGroup}
-            onOpenChange={setShowEditGroup}
-            conversationId={conversation.id}
-            currentName={conversation.name || "Unnamed Group"}
-            currentIcon={conversation.icon_name || null}
-            onGroupUpdated={() => {
-              // The real-time subscription should handle the update
-              // But we can also trigger a page refresh if needed
-              window.location.reload()
-            }}
-          />
-        </>
-      )}
       <MessageSearchDialog
         open={showSearch}
         onOpenChange={setShowSearch}
         messages={messages}
         conversationName={
-          conversation.is_group
-            ? conversation.name || "Unnamed Group"
-            : conversation.other_user?.fullname || conversation.other_user?.username || conversation.other_user?.email || "Chat"
+          conversation.other_user?.fullname || conversation.other_user?.username || conversation.other_user?.email || "Chat"
         }
       />
     </div>

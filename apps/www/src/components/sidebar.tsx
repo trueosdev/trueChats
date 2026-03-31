@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
-import { MoreHorizontal, SquarePen, Users, Mailbox } from "lucide-react";
+import { SquarePen, Mailbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeAvatarImage } from "./ui/theme-avatar";
-import * as LucideIcons from 'lucide-react';
 import { buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
@@ -14,12 +12,11 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarImage } from "./ui/avatar";
+import { Avatar } from "./ui/avatar";
 import { Message } from "@/app/data";
 import { UserAvatarMenu } from "./user-avatar-menu";
 import { Skeleton } from "./ui/skeleton";
 import { NewChatDialog } from "./new-chat-dialog";
-import { NewGroupDialog } from "./new-group-dialog";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -30,25 +27,18 @@ interface SidebarProps {
     avatar: string;
     variant: "secondary" | "ghost";
     hasUnread?: boolean;
-    isGroup?: boolean;
-    participantCount?: number;
-    iconName?: string | null;
   }[];
-  onClick?: () => void;
   isMobile: boolean;
   onChatSelect?: (conversationId: string) => void;
-  onNewChat?: () => void;
   onNewChatCreated?: (conversationId: string) => void;
-  onNewGroup?: () => void;
-  onGroupCreated?: (conversationId: string) => void;
   onPendingChats?: () => void;
   pendingRequestCount?: number;
   loading?: boolean;
+  customNav?: React.ReactNode;
 }
 
-export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat, onNewChatCreated, onNewGroup, onGroupCreated, onPendingChats, pendingRequestCount = 0, loading = false }: SidebarProps) {
+export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatCreated, onPendingChats, pendingRequestCount = 0, loading = false, customNav }: SidebarProps) {
   const [newChatOpen, setNewChatOpen] = useState(false);
-  const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   return (
     <div
@@ -109,34 +99,6 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
-            <Popover open={newGroupOpen} onOpenChange={setNewGroupOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
-                    "h-9 w-9",
-                  )}
-                >
-                  <Users size={20} />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                side="bottom"
-                align="start"
-                sideOffset={8}
-                className="w-auto p-0 border-0 bg-transparent shadow-none ml-2"
-              >
-                <NewGroupDialog
-                  open={newGroupOpen}
-                  onOpenChange={setNewGroupOpen}
-                  onGroupCreated={(id) => {
-                    setNewGroupOpen(false);
-                    onGroupCreated?.(id);
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
           </div>
         </div>
       )}
@@ -204,39 +166,13 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-
-          <Popover open={newGroupOpen} onOpenChange={setNewGroupOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon" }),
-                  "h-9 w-9 flex items-center justify-center",
-                )}
-              >
-                <Users size={20} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="right"
-              align="start"
-              sideOffset={8}
-              className="w-auto p-0 border-0 bg-transparent shadow-none ml-2"
-            >
-              <NewGroupDialog
-                open={newGroupOpen}
-                onOpenChange={setNewGroupOpen}
-                onGroupCreated={(id) => {
-                  setNewGroupOpen(false);
-                  onGroupCreated?.(id);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
         </div>
       )}
+      {customNav ? (
+        <div className="flex-1 overflow-y-auto">{customNav}</div>
+      ) : (
       <nav className="flex-1 overflow-y-auto p-2 grid gap-1 content-start group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:items-center group-[[data-collapsed=true]]:px-2 group-[[data-collapsed=true]]:gap-3">
         {loading ? (
-          // Loading skeletons
           Array.from({ length: 5 }).map((_, index) => (
             isCollapsed ? (
               <div key={index} className="flex items-center justify-center">
@@ -253,7 +189,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
             )
           ))
         ) : (
-          chats.map((chat, index) =>
+          chats.map((chat) =>
           isCollapsed ? (
             <TooltipProvider key={chat.id}>
               <Tooltip key={chat.id} delayDuration={0}>
@@ -266,33 +202,17 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
                         "h-9 w-9 relative flex items-center justify-center rounded-full p-0",
                       )}
                     >
-                      {chat.isGroup ? (
-                        <div className={cn(
-                          "h-9 w-9 bg-black/10 dark:bg-white/10 rounded-full flex items-center justify-center shrink-0 relative",
-                          chat.variant === "secondary" && "ring-2 ring-black dark:ring-white"
-                        )}>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            {(() => {
-                              const iconName = chat.iconName || 'Users'
-                              const IconComponent = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ size?: number; className?: string }>
-                              return IconComponent ? <IconComponent size={18} className="text-black dark:text-white" /> : <Users size={18} className="text-black dark:text-white" />
-                            })()}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className={cn(
-                          "h-9 w-9 rounded-full",
-                          chat.variant === "secondary" && "ring-2 ring-black dark:ring-white"
-                        )}>
+                      <div className={cn(
+                        "h-9 w-9 rounded-full",
+                        chat.variant === "secondary" && "ring-2 ring-black dark:ring-white"
+                      )}>
                         <Avatar className="h-9 w-9">
                           <ThemeAvatarImage
-                              avatarUrl={chat.avatar}
-                              alt={chat.name}
+                            avatarUrl={chat.avatar}
+                            alt={chat.name}
                           />
                         </Avatar>
-                        </div>
-                      )}
-                      {/* Unread notification indicator */}
+                      </div>
                       {chat.hasUnread && (
                         <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-2 border-background rounded-full" />
                       )}
@@ -321,38 +241,18 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
               )}
             >
               <div className="relative shrink-0">
-                {chat.isGroup ? (
-                  <div className="h-9 w-9 bg-black/10 dark:bg-white/10 rounded-full flex items-center justify-center shrink-0 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {(() => {
-                        const iconName = chat.iconName || 'Users'
-                        const IconComponent = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ size?: number; className?: string }>
-                        return IconComponent ? <IconComponent size={18} className="text-black dark:text-white" /> : <Users size={18} className="text-black dark:text-white" />
-                      })()}
-                    </div>
-                  </div>
-                ) : (
-                  <Avatar className="h-9 w-9">
-                    <ThemeAvatarImage
-                      avatarUrl={chat.avatar}
-                      alt={chat.name}
-                    />
-                  </Avatar>
-                )}
-                {/* Unread notification indicator */}
+                <Avatar className="h-9 w-9">
+                  <ThemeAvatarImage
+                    avatarUrl={chat.avatar}
+                    alt={chat.name}
+                  />
+                </Avatar>
                 {chat.hasUnread && (
                   <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-2 border-background rounded-full" />
                 )}
               </div>
               <div className="flex flex-col max-w-28 text-left">
-                <div className="flex items-center gap-1">
-                  <span className="truncate">{chat.name}</span>
-                  {chat.isGroup && chat.participantCount && (
-                    <span className="text-xs text-black/70 dark:text-white/70 shrink-0">
-                      ({chat.participantCount})
-                    </span>
-                  )}
-                </div>
+                <span className="truncate">{chat.name}</span>
                 {chat.messages.length > 0 && (
                   <span className="text-black dark:text-white text-xs truncate">
                     {chat.messages[chat.messages.length - 1].name.split(" ")[0]}
@@ -367,6 +267,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChat,
           )
         ))}
       </nav>
+      )}
     </div>
   );
 }

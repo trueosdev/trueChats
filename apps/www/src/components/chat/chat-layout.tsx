@@ -18,6 +18,14 @@ import { PendingChatsPage } from "../pending-chats-page";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { getUnreadCounts, subscribeToMessages } from "@/lib/services/messages";
 import { getPendingRequests, subscribeToChatRequests } from "@/lib/services/chat-requests";
+import { LoomSidebar } from "../loom/loom-sidebar";
+import { ThreadList } from "../loom/thread-list";
+import { ThreadChat } from "../loom/thread-chat";
+import { CreateLoomDialog } from "../loom/create-loom-dialog";
+import { CreateThreadDialog } from "../loom/create-thread-dialog";
+import { LoomMembersDialog } from "../loom/loom-members-dialog";
+import { getLooms, subscribeToLooms } from "@/lib/services/looms";
+import { getThreads, subscribeToThreads } from "@/lib/services/threads";
 
 interface ChatLayoutProps {
   defaultLayout: number[] | undefined;
@@ -34,10 +42,20 @@ export function ChatLayout({
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
   const [isMobile, setIsMobile] = useState(false);
   const [showPendingChats, setShowPendingChats] = useState(false);
+  const [showCreateLoom, setShowCreateLoom] = useState(false);
+  const [showCreateThread, setShowCreateThread] = useState(false);
+  const [showLoomMembers, setShowLoomMembers] = useState(false);
+
   const conversations = useChatStore((state) => state.conversations);
   const selectedConversationId = useChatStore((state) => state.selectedConversationId);
   const unreadCounts = useChatStore((state) => state.unreadCounts);
   const pendingRequestCount = useChatStore((state) => state.pendingRequestCount);
+  const viewMode = useChatStore((state) => state.viewMode);
+  const looms = useChatStore((state) => state.looms);
+  const selectedLoomId = useChatStore((state) => state.selectedLoomId);
+  const threads = useChatStore((state) => state.threads);
+  const selectedThreadId = useChatStore((state) => state.selectedThreadId);
+
   const setConversations = useChatStore((state) => state.setConversations);
   const addConversation = useChatStore((state) => state.addConversation);
   const updateConversation = useChatStore((state) => state.updateConversation);
@@ -46,47 +64,44 @@ export function ChatLayout({
   const setUnreadCounts = useChatStore((state) => state.setUnreadCounts);
   const setUnreadCount = useChatStore((state) => state.setUnreadCount);
   const setPendingRequestCount = useChatStore((state) => state.setPendingRequestCount);
+  const setViewMode = useChatStore((state) => state.setViewMode);
+  const setLooms = useChatStore((state) => state.setLooms);
+  const setSelectedLoomId = useChatStore((state) => state.setSelectedLoomId);
+  const setThreads = useChatStore((state) => state.setThreads);
+  const setSelectedThreadId = useChatStore((state) => state.setSelectedThreadId);
+  const setLoomLoading = useChatStore((state) => state.setLoomLoading);
+
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
 
   useEffect(() => {
     const checkScreenWidth = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-
     checkScreenWidth();
     window.addEventListener("resize", checkScreenWidth);
-
-    return () => {
-      window.removeEventListener("resize", checkScreenWidth);
-    };
+    return () => window.removeEventListener("resize", checkScreenWidth);
   }, []);
 
+  // Load conversations and subscribe to DM changes
   useEffect(() => {
     if (!user) return;
 
-    // Load conversations
     setLoading(true);
     getConversations(user.id).then(async (data) => {
       setConversations(data);
       setLoading(false);
-      
-      // Load unread counts for all conversations
       const conversationIds = data.map((c) => c.id);
       const counts = await getUnreadCounts(user.id, conversationIds);
       setUnreadCounts(counts);
     });
 
-    // Load pending requests count
     getPendingRequests(user.id).then((requests) => {
       setPendingRequestCount(requests.length);
     });
 
-    // Subscribe to real-time updates
     const unsubscribe = subscribeToConversations(user.id, (conversation) => {
-      // Use the store's state directly instead of the stale closure
       const currentConversations = useChatStore.getState().conversations;
       const exists = currentConversations.find((c) => c.id === conversation.id);
-      
       if (exists) {
         updateConversation(conversation.id, conversation);
       } else {
@@ -94,10 +109,8 @@ export function ChatLayout({
       }
     });
 
-    // Subscribe to chat requests
     const unsubscribeRequests = subscribeToChatRequests(user.id, (request) => {
       if (request.status === 'pending') {
-        // Reload pending requests count
         getPendingRequests(user.id).then((requests) => {
           setPendingRequestCount(requests.length);
         });
@@ -108,15 +121,59 @@ export function ChatLayout({
       unsubscribe();
       unsubscribeRequests();
     };
-  }, [user, setConversations, addConversation, updateConversation, setLoading, setUnreadCounts, setPendingRequestCount]);
+  }, [user]);
 
-  // Subscribe to all conversations' messages to update unread counts
+  // Load looms
+  useEffect(() => {
+    if (!user) return;
+
+    getLooms(user.id).then(setLooms);
+
+    const unsubscribe = subscribeToLooms(user.id, (loom) => {
+      const currentLooms = useChatStore.getState().looms;
+      const exists = currentLooms.find(l => l.id === loom.id);
+      if (exists) {
+        useChatStore.getState().updateLoom(loom.id, loom);
+      } else {
+        useChatStore.getState().addLoom(loom);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Load threads when a loom is selected
+  useEffect(() => {
+    if (!selectedLoomId) {
+      setThreads([]);
+      return;
+    }
+
+    setLoomLoading(true);
+    getThreads(selectedLoomId).then((data) => {
+      setThreads(data);
+      setLoomLoading(false);
+    });
+
+    const unsubscribe = subscribeToThreads(selectedLoomId, (thread) => {
+      const currentThreads = useChatStore.getState().threads;
+      const exists = currentThreads.find(t => t.id === thread.id);
+      if (exists) {
+        useChatStore.getState().updateThread(thread.id, thread);
+      } else {
+        useChatStore.getState().addThread(thread);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [selectedLoomId]);
+
+  // Subscribe to messages for unread count updates
   useEffect(() => {
     if (!user || conversations.length === 0) return;
 
     const unsubscribers = conversations.map((conv) => {
       return subscribeToMessages(conv.id, async (message) => {
-        // If message is from another user and we're not viewing this conversation, increment unread
         if (message.sender_id !== user.id && selectedConversationId !== conv.id) {
           const counts = await getUnreadCounts(user.id, [conv.id]);
           setUnreadCount(conv.id, counts[conv.id] || 0);
@@ -139,17 +196,33 @@ export function ChatLayout({
     );
   }
 
-  const selectedConversation = conversations.find(
-    (c) => c.id === selectedConversationId
-  );
+  const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
+  const selectedLoom = looms.find(l => l.id === selectedLoomId);
+  const selectedThread = threads.find(t => t.id === selectedThreadId);
 
   const handleConversationCreated = async (conversationId: string) => {
-    // Reload conversations to get the new one with user details
     if (user) {
       const updatedConversations = await getConversations(user.id);
       setConversations(updatedConversations);
       setSelectedConversationId(conversationId);
       setShowPendingChats(false);
+    }
+  };
+
+  const handleLoomCreated = async (loomId: string) => {
+    if (user) {
+      const updatedLooms = await getLooms(user.id);
+      setLooms(updatedLooms);
+      setViewMode('looms');
+      setSelectedLoomId(loomId);
+    }
+  };
+
+  const handleThreadCreated = async (threadId: string) => {
+    if (selectedLoomId) {
+      const updatedThreads = await getThreads(selectedLoomId);
+      setThreads(updatedThreads);
+      setSelectedThreadId(threadId);
     }
   };
 
@@ -166,118 +239,193 @@ export function ChatLayout({
   const handleDoubleClick = () => {
     const panel = sidebarPanelRef.current;
     if (!panel) return;
+    if (isCollapsed) panel.expand();
+    else panel.collapse();
+  };
 
-    if (isCollapsed) {
-      panel.expand();
-    } else {
-      panel.collapse();
+  const handleDmsSelect = () => {
+    setViewMode('dms');
+    setSelectedLoomId(null);
+    setSelectedThreadId(null);
+  };
+
+  const handleLoomSelect = (loomId: string) => {
+    setViewMode('looms');
+    setSelectedLoomId(loomId);
+    setSelectedConversationId(null);
+    setShowPendingChats(false);
+  };
+
+  const renderSidebarContent = () => {
+    const collapsed = isCollapsed || isMobile;
+    const loomNav = viewMode === 'looms' && selectedLoom ? (
+      <ThreadList
+        loom={selectedLoom}
+        threads={threads}
+        selectedThreadId={selectedThreadId}
+        onThreadSelect={(threadId) => setSelectedThreadId(threadId)}
+        onCreateThread={() => setShowCreateThread(true)}
+        onShowMembers={() => setShowLoomMembers(true)}
+        loading={useChatStore.getState().loomLoading}
+        isCollapsed={collapsed}
+      />
+    ) : undefined;
+
+    return (
+      <Sidebar
+        isCollapsed={isCollapsed || isMobile}
+        chats={conversations.filter(conv => !conv.is_group).map((conv) => ({
+          id: conv.id,
+          name: conv.other_user?.fullname || conv.other_user?.username || conv.other_user?.email || "Unknown",
+          messages: conv.last_message ? [{
+            id: conv.last_message.id,
+            name: conv.other_user?.fullname || conv.other_user?.username || "Unknown",
+            message: conv.last_message.content,
+            timestamp: new Date(conv.last_message.created_at).toLocaleTimeString(),
+            avatar: getAvatarUrl(conv.other_user?.avatar_url),
+          }] : [],
+          avatar: getAvatarUrl(conv.other_user?.avatar_url),
+          variant: selectedConversationId === conv.id ? "secondary" : "ghost",
+          hasUnread: (unreadCounts[conv.id] || 0) > 0,
+        }))}
+        isMobile={isMobile}
+        loading={useChatStore.getState().loading}
+        onChatSelect={(conversationId) => {
+          setSelectedConversationId(conversationId);
+          setShowPendingChats(false);
+          setUnreadCount(conversationId, 0);
+        }}
+        onNewChatCreated={handleConversationCreated}
+        onPendingChats={handlePendingChatsClick}
+        pendingRequestCount={pendingRequestCount}
+        customNav={loomNav}
+      />
+    );
+  };
+
+  // Render the main content area
+  const renderMainContent = () => {
+    if (viewMode === 'looms' && selectedLoom && selectedThread) {
+      return (
+        <ThreadChat
+          thread={selectedThread}
+          loom={selectedLoom}
+          isMobile={isMobile}
+        />
+      );
     }
+
+    if (viewMode === 'looms' && selectedLoom && !selectedThread) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-2">
+            <p className="text-black/40 dark:text-white/40">Select a thread to start chatting</p>
+            <button
+              onClick={() => setShowCreateThread(true)}
+              className="text-sm text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white underline underline-offset-2"
+            >
+              or create a new one
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (showPendingChats) {
+      return <PendingChatsPage onRequestAccepted={handleRequestAccepted} />;
+    }
+
+    if (selectedConversation) {
+      return (
+        <Chat
+          conversation={selectedConversation}
+          isMobile={isMobile}
+        />
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center h-full text-black dark:text-white">
+        It&apos;s lonely in here...
+      </div>
+    );
   };
 
   return (
     <ProtectedRoute>
-      <ResizablePanelGroup
-        direction="horizontal"
-        onLayout={(sizes: number[]) => {
-          document.cookie = `react-resizable-panels:layout=${JSON.stringify(
-            sizes,
-          )}`;
-        }}
-        className="h-full items-stretch"
-      >
-        <ResizablePanel
-          ref={sidebarPanelRef}
-          defaultSize={defaultLayout[0]}
-          collapsedSize={navCollapsedSize}
-          collapsible={true}
-          minSize={isMobile ? 0 : 24}
-          maxSize={isMobile ? 8 : 30}
-          onCollapse={() => {
-            setIsCollapsed(true);
-            document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-              true,
-            )}`;
+      <div className="flex h-full">
+        {/* Loom rail */}
+        <LoomSidebar
+          looms={looms}
+          selectedLoomId={selectedLoomId}
+          viewMode={viewMode}
+          onLoomSelect={handleLoomSelect}
+          onDmsSelect={handleDmsSelect}
+          onCreateLoom={() => setShowCreateLoom(true)}
+          loading={authLoading}
+        />
+
+        {/* Main content area */}
+        <ResizablePanelGroup
+          direction="horizontal"
+          onLayout={(sizes: number[]) => {
+            document.cookie = `react-resizable-panels:layout=${JSON.stringify(sizes)}`;
           }}
-          onExpand={() => {
-            setIsCollapsed(false);
-            document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-              false,
-            )}`;
-          }}
-          className={cn(
-            isCollapsed &&
-              "min-w-[50px] md:min-w-[70px] transition-all duration-300 ease-in-out",
-          )}
+          className="h-full items-stretch flex-1"
         >
-          <Sidebar
-            isCollapsed={isCollapsed || isMobile}
-            chats={conversations.map((conv) => {
-              if (conv.is_group) {
-                return {
-                  id: conv.id,
-                  name: conv.name || "Unnamed Group",
-                  messages: conv.last_message ? [{
-                    id: conv.last_message.id,
-                    name: "Group",
-                    message: conv.last_message.content,
-                    timestamp: new Date(conv.last_message.created_at).toLocaleTimeString(),
-                    avatar: getAvatarUrl(""),
-                  }] : [],
-                  avatar: getAvatarUrl(""),
-                  variant: selectedConversationId === conv.id ? "secondary" : "ghost",
-                  hasUnread: (unreadCounts[conv.id] || 0) > 0,
-                  isGroup: true,
-                  participantCount: conv.participant_count,
-                  iconName: conv.icon_name || null,
-                }
-              } else {
-                return {
-                  id: conv.id,
-                  name: conv.other_user?.fullname || conv.other_user?.username || conv.other_user?.email || "Unknown",
-                  messages: conv.last_message ? [{
-                    id: conv.last_message.id,
-                    name: conv.other_user?.fullname || conv.other_user?.username || "Unknown",
-                    message: conv.last_message.content,
-                    timestamp: new Date(conv.last_message.created_at).toLocaleTimeString(),
-                    avatar: getAvatarUrl(conv.other_user?.avatar_url),
-                  }] : [],
-                  avatar: getAvatarUrl(conv.other_user?.avatar_url),
-                  variant: selectedConversationId === conv.id ? "secondary" : "ghost",
-                  hasUnread: (unreadCounts[conv.id] || 0) > 0,
-                  isGroup: false,
-                }
-              }
-            })}
-            isMobile={isMobile}
-            loading={useChatStore.getState().loading}
-            onChatSelect={(conversationId) => {
-              setSelectedConversationId(conversationId);
-              setShowPendingChats(false);
-              // Clear unread count when selecting a conversation
-              setUnreadCount(conversationId, 0);
+          <ResizablePanel
+            ref={sidebarPanelRef}
+            defaultSize={defaultLayout[0]}
+            collapsedSize={navCollapsedSize}
+            collapsible={true}
+            minSize={isMobile ? 0 : 24}
+            maxSize={isMobile ? 8 : 30}
+            onCollapse={() => {
+              setIsCollapsed(true);
+              document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(true)}`;
             }}
-            onNewChatCreated={handleConversationCreated}
-            onGroupCreated={handleConversationCreated}
-            onPendingChats={handlePendingChatsClick}
-            pendingRequestCount={pendingRequestCount}
+            onExpand={() => {
+              setIsCollapsed(false);
+              document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(false)}`;
+            }}
+            className={cn(
+              isCollapsed &&
+                "min-w-[50px] md:min-w-[70px] transition-all duration-300 ease-in-out",
+            )}
+          >
+            {renderSidebarContent()}
+          </ResizablePanel>
+          <ResizableHandle withHandle onDoubleClick={handleDoubleClick} />
+          <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
+            {renderMainContent()}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+
+        {/* Dialogs */}
+        <CreateLoomDialog
+          open={showCreateLoom}
+          onOpenChange={setShowCreateLoom}
+          onLoomCreated={handleLoomCreated}
+        />
+
+        {selectedLoomId && (
+          <CreateThreadDialog
+            open={showCreateThread}
+            onOpenChange={setShowCreateThread}
+            loomId={selectedLoomId}
+            onThreadCreated={handleThreadCreated}
           />
-        </ResizablePanel>
-        <ResizableHandle withHandle onDoubleClick={handleDoubleClick} />
-        <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
-          {showPendingChats ? (
-            <PendingChatsPage onRequestAccepted={handleRequestAccepted} />
-          ) : selectedConversation ? (
-            <Chat
-              conversation={selectedConversation}
-              isMobile={isMobile}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-black dark:text-white">
-              It&apos;s lonely in here...
-            </div>
-          )}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        )}
+
+        {selectedLoom && (
+          <LoomMembersDialog
+            open={showLoomMembers}
+            onOpenChange={setShowLoomMembers}
+            loomId={selectedLoom.id}
+            loomName={selectedLoom.name}
+          />
+        )}
+      </div>
     </ProtectedRoute>
   );
 }

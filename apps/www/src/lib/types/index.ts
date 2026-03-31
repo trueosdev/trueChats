@@ -51,22 +51,5 @@ export interface ConversationWithUser {
     avatar_url: string | null;
     email: string;
   };
-  participants?: ConversationParticipant[];
-  participant_count?: number;
-}
-
-export interface ConversationParticipant {
-  id: string;
-  conversation_id: string;
-  user_id: string;
-  joined_at: string;
-  role: 'admin' | 'member';
-  user: {
-    id: string;
-    username: string | null;
-    fullname: string | null;
-    avatar_url: string | null;
-    email: string;
-  };
 }
 

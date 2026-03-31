@@ -187,13 +187,17 @@ export function NewChatDialog({ open, onOpenChange, onConversationCreated }: New
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {loading ? (
+        {!searchQuery.trim() ? (
+          <div className="text-center py-8 text-xs text-black/40 dark:text-white/40">
+            Search by name or username
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="loader" style={{ width: '24px', height: '24px' }}></div>
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-8 text-xs text-black/40 dark:text-white/40">
-            {searchQuery ? 'No users found' : 'No users available'}
+            No users found
           </div>
         ) : (
           <div className="py-1">

@@ -24,11 +24,12 @@ interface ChatBottombarProps {
   conversationId: string;
   isMobile: boolean;
   typingChannel: RealtimeChannel | null;
+  customSendMessage?: (conversationId: string, content: string, senderId: string, attachment?: AttachmentData, replyToId?: string) => Promise<any>;
 }
 
 export const BottombarIcons = [{ icon: FileImage }, { icon: Paperclip }];
 
-export default function ChatBottombar({ conversationId, isMobile, typingChannel }: ChatBottombarProps) {
+export default function ChatBottombar({ conversationId, isMobile, typingChannel, customSendMessage }: ChatBottombarProps) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -153,7 +154,8 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel 
     if (!user || !conversationId) return;
     
     setSelectedLoading(true);
-    const sentMessage = await sendMessage(conversationId, "👍", user.id);
+    const send = customSendMessage || sendMessage;
+    const sentMessage = await send(conversationId, "👍", user.id);
     if (sentMessage) {
       addMessage(sentMessage);
     }
@@ -182,7 +184,8 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel 
         attachment = uploadResult;
       }
       
-      const sentMessage = await sendMessage(
+      const send = customSendMessage || sendMessage;
+      const sentMessage = await send(
         conversationId, 
         message.trim() || ' ',  // Space if only attachment
         user.id,

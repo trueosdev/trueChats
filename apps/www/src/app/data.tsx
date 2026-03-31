@@ -41,7 +41,6 @@ export interface ConversationWithUser {
   is_group: boolean;
   name: string | null;
   created_by: string | null;
-  icon_name?: string | null;
   last_message: {
     id: string;
     content: string;
@@ -55,21 +54,67 @@ export interface ConversationWithUser {
     avatar_url: string | null;
     email: string;
   };
-  participants?: ConversationParticipant[];
-  participant_count?: number;
 }
 
-export interface ConversationParticipant {
+// Loom & Thread types
+export type LoomVisibility = 'public' | 'private' | 'invite_only';
+export type LoomMemberRole = 'owner' | 'admin' | 'moderator' | 'member';
+export type ThreadType = 'open' | 'private';
+
+export interface Loom {
   id: string;
-  conversation_id: string;
+  name: string;
+  description: string | null;
+  icon_name: string | null;
+  banner_url: string | null;
+  visibility: LoomVisibility;
+  created_by: string;
+  created_at: string;
+  member_count?: number;
+  thread_count?: number;
+}
+
+export interface LoomMember {
+  id: string;
+  loom_id: string;
   user_id: string;
+  role: LoomMemberRole;
   joined_at: string;
-  role: 'admin' | 'member';
   user: {
     id: string;
     username: string | null;
     fullname: string | null;
     avatar_url: string | null;
     email: string;
+  };
+}
+
+export interface Thread {
+  id: string;
+  loom_id: string;
+  name: string;
+  description: string | null;
+  icon_emoji: string | null;
+  type: ThreadType;
+  is_pinned: boolean;
+  is_archived: boolean;
+  created_by: string;
+  created_at: string;
+  last_message: {
+    id: string;
+    content: string;
+    sender_id: string;
+    created_at: string;
+  } | null;
+}
+
+export interface ThreadMessage extends Message {
+  thread_id: string;
+  content: string;
+  sender: {
+    id: string;
+    username: string | null;
+    fullname: string | null;
+    avatar_url: string | null;
   };
 }

@@ -328,21 +328,23 @@ export async function getUnreadCounts(
   conversationIds: string[]
 ): Promise<Record<string, number>> {
   try {
-    if (conversationIds.length === 0) return {}
+    if (!userId || conversationIds.length === 0) return {}
+
+    const validIds = conversationIds.filter(Boolean)
+    if (validIds.length === 0) return {}
 
     const { data, error } = await supabase
       .from('messages')
       .select('conversation_id')
-      .in('conversation_id', conversationIds)
+      .in('conversation_id', validIds)
       .neq('sender_id', userId)
       .is('read_at', null)
 
     if (error) {
-      console.error('Error getting unread counts:', error)
+      console.error('Error getting unread counts:', error.message, error.code, error.details)
       return {}
     }
 
-    // Count messages per conversation
     const counts: Record<string, number> = {}
     data?.forEach((msg: any) => {
       counts[msg.conversation_id] = (counts[msg.conversation_id] || 0) + 1
@@ -350,7 +352,7 @@ export async function getUnreadCounts(
 
     return counts
   } catch (error) {
-    console.error('Error getting unread counts:', error)
+    console.error('Error getting unread counts:', error instanceof Error ? error.message : String(error))
     return {}
   }
 }

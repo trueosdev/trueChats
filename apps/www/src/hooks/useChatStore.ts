@@ -1,5 +1,7 @@
-import { Message, ConversationWithUser } from "@/app/data";
+import { Message, ConversationWithUser, Loom, Thread, ThreadMessage } from "@/app/data";
 import { create } from "zustand";
+
+type ViewMode = 'dms' | 'looms';
 
 interface State {
   input: string;
@@ -10,6 +12,14 @@ interface State {
   unreadCounts: Record<string, number>;
   replyingTo: Message | null;
   pendingRequestCount: number;
+  // Loom state
+  viewMode: ViewMode;
+  looms: Loom[];
+  selectedLoomId: string | null;
+  threads: Thread[];
+  selectedThreadId: string | null;
+  threadMessages: ThreadMessage[];
+  loomLoading: boolean;
 }
 
 interface Actions {
@@ -31,6 +41,19 @@ interface Actions {
   setUnreadCount: (conversationId: string, count: number) => void;
   setReplyingTo: (message: Message | null) => void;
   setPendingRequestCount: (count: number) => void;
+  // Loom actions
+  setViewMode: (mode: ViewMode) => void;
+  setLooms: (looms: Loom[]) => void;
+  addLoom: (loom: Loom) => void;
+  updateLoom: (loomId: string, updates: Partial<Loom>) => void;
+  setSelectedLoomId: (id: string | null) => void;
+  setThreads: (threads: Thread[]) => void;
+  addThread: (thread: Thread) => void;
+  updateThread: (threadId: string, updates: Partial<Thread>) => void;
+  setSelectedThreadId: (id: string | null) => void;
+  setThreadMessages: (messages: ThreadMessage[]) => void;
+  addThreadMessage: (message: ThreadMessage) => void;
+  setLoomLoading: (loading: boolean) => void;
 }
 
 const useChatStore = create<State & Actions>()((set) => ({
@@ -42,6 +65,13 @@ const useChatStore = create<State & Actions>()((set) => ({
   unreadCounts: {},
   replyingTo: null,
   pendingRequestCount: 0,
+  viewMode: 'dms',
+  looms: [],
+  selectedLoomId: null,
+  threads: [],
+  selectedThreadId: null,
+  threadMessages: [],
+  loomLoading: false,
 
   setInput: (input) => set({ input }),
   handleInputChange: (
@@ -52,7 +82,6 @@ const useChatStore = create<State & Actions>()((set) => ({
 
   setMessages: (messages) => set({ messages }),
   addMessage: (message) => set((state) => {
-    // Prevent duplicate messages
     const exists = state.messages.some(m => m.id === message.id);
     if (exists) return state;
     
@@ -66,7 +95,6 @@ const useChatStore = create<State & Actions>()((set) => ({
 
   setConversations: (conversations) => set({ conversations }),
   addConversation: (conversation) => set((state) => {
-    // Prevent duplicate conversations
     const exists = state.conversations.some(c => c.id === conversation.id);
     if (exists) return state;
     
@@ -75,12 +103,10 @@ const useChatStore = create<State & Actions>()((set) => ({
     };
   }),
   updateConversation: (conversationId, updates) => set((state) => {
-    // Update the conversation and move it to the top of the list
     const updatedConversations = state.conversations.map((conv) =>
       conv.id === conversationId ? { ...conv, ...updates } : conv
     );
     
-    // Sort by last_message created_at or conversation created_at (most recent first)
     updatedConversations.sort((a, b) => {
       const aTime = a.last_message?.created_at || a.created_at;
       const bTime = b.last_message?.created_at || b.created_at;
@@ -97,6 +123,40 @@ const useChatStore = create<State & Actions>()((set) => ({
   })),
   setReplyingTo: (message) => set({ replyingTo: message }),
   setPendingRequestCount: (count) => set({ pendingRequestCount: count }),
+
+  // Loom actions
+  setViewMode: (mode) => set({ viewMode: mode }),
+  setLooms: (looms) => set({ looms }),
+  addLoom: (loom) => set((state) => {
+    const exists = state.looms.some(l => l.id === loom.id);
+    if (exists) return state;
+    return { looms: [loom, ...state.looms] };
+  }),
+  updateLoom: (loomId, updates) => set((state) => ({
+    looms: state.looms.map((l) =>
+      l.id === loomId ? { ...l, ...updates } : l
+    ),
+  })),
+  setSelectedLoomId: (id) => set({ selectedLoomId: id, selectedThreadId: null, threadMessages: [] }),
+  setThreads: (threads) => set({ threads }),
+  addThread: (thread) => set((state) => {
+    const exists = state.threads.some(t => t.id === thread.id);
+    if (exists) return state;
+    return { threads: [...state.threads, thread] };
+  }),
+  updateThread: (threadId, updates) => set((state) => ({
+    threads: state.threads.map((t) =>
+      t.id === threadId ? { ...t, ...updates } : t
+    ),
+  })),
+  setSelectedThreadId: (id) => set({ selectedThreadId: id, threadMessages: [] }),
+  setThreadMessages: (messages) => set({ threadMessages: messages }),
+  addThreadMessage: (message) => set((state) => {
+    const exists = state.threadMessages.some(m => m.id === message.id);
+    if (exists) return state;
+    return { threadMessages: [...state.threadMessages, message] };
+  }),
+  setLoomLoading: (loading) => set({ loomLoading: loading }),
 }));
 
 export default useChatStore;

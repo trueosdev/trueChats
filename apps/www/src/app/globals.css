@@ -69,14 +69,25 @@
     @apply bg-background text-foreground;
   }
 
-  /* No native blue focus box / tap flash on buttons — components use theme focus-visible rings where needed */
+  /* Kill native blue/purple focus outlines & tap flash everywhere — components use theme focus-visible rings where needed */
+  *:focus,
+  *:active {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   button,
+  input,
+  textarea,
+  select,
+  a,
   [type="button"],
   [type="submit"],
   [type="reset"],
-  [role="button"] {
+  [role="button"],
+  [tabindex] {
     -webkit-tap-highlight-color: transparent;
-    outline: none;
+    outline: none !important;
   }
 
   button::-moz-focus-inner {

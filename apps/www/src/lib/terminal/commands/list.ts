@@ -45,11 +45,10 @@ export const listCommand: CommandHandler = {
         "Conversations:",
         "",
         ...formatTable(
-          ["ID", "Name", "Type", "Last Message"],
-          conversations.map(conv => [
+          ["ID", "Name", "Last Message"],
+          conversations.filter(c => !c.is_group).map(conv => [
             conv.id.slice(0, 8) + "...",
-            conv.is_group ? (conv.name || "Group") : (conv.other_user?.fullname || conv.other_user?.username || "Unknown"),
-            conv.is_group ? "Group" : "Direct",
+            conv.other_user?.fullname || conv.other_user?.username || "Unknown",
             conv.last_message?.content.slice(0, 30) || "No messages",
           ])
         ),
