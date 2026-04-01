@@ -1,0 +1,38 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: apps/www/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/www
+
+      - name: Build and publish desktop app
+        run: npm run release
+        working-directory: apps/www
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

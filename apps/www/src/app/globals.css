@@ -28,11 +28,6 @@
     --input: 0 0% 0% / 0.1;
     --ring: 0 0% 0% / 0.2;
     --radius: 1rem;
-    /* 0 = full window (no frame). 1–100 = outer padding scales up; 100 = old default framed window. */
-    --frame-inset-pct: 100;
-    --frame-inset: calc(
-      var(--frame-inset-pct) / 100 * 0.16 * min(100vw, 100dvh)
-    );
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
@@ -92,10 +87,6 @@
 
   button::-moz-focus-inner {
     border: 0;
-  }
-
-  html.terminal-mode {
-    --frame-inset: 0px;
   }
 
   html.electron-mac {

@@ -15,7 +15,7 @@ import { getConversations, subscribeToConversations } from "@/lib/services/conve
 import useChatStore from "@/hooks/useChatStore";
 import type { ConversationWithUser } from "@/app/data";
 import { PendingChatsPage } from "../pending-chats-page";
-import type { ImperativePanelHandle } from "react-resizable-panels";
+import type { PanelImperativeHandle } from "react-resizable-panels";
 import { getUnreadCounts, subscribeToMessages } from "@/lib/services/messages";
 import { getPendingRequests, subscribeToChatRequests } from "@/lib/services/chat-requests";
 import { LoomSidebar } from "../loom/loom-sidebar";
@@ -28,16 +28,20 @@ import { LoomMembersDialog } from "../loom/loom-members-dialog";
 import { getLooms, subscribeToLooms } from "@/lib/services/looms";
 import { getThreads, subscribeToThreads } from "@/lib/services/threads";
 
+/** `react-resizable-panels` v4 treats numeric sizes as px; persisted layout uses % (0–100). */
+function panelDefaultSize(value: number): number | string {
+  if (value >= 0 && value <= 100) return `${value}%`;
+  return value;
+}
+
 interface ChatLayoutProps {
   defaultLayout: number[] | undefined;
   defaultCollapsed?: boolean;
-  navCollapsedSize: number;
 }
 
 export function ChatLayout({
   defaultLayout = [320, 480],
   defaultCollapsed = false,
-  navCollapsedSize,
 }: ChatLayoutProps) {
   const { user, loading: authLoading } = useAuth();
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
@@ -73,7 +77,7 @@ export function ChatLayout({
   const setSelectedThreadId = useChatStore((state) => state.setSelectedThreadId);
   const setLoomLoading = useChatStore((state) => state.setLoomLoading);
 
-  const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
+  const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
 
   useEffect(() => {
     const checkScreenWidth = () => {
@@ -369,26 +373,25 @@ export function ChatLayout({
 
         {/* Main content area */}
         <ResizablePanelGroup
-          direction="horizontal"
-          onLayout={(sizes: number[]) => {
+          orientation="horizontal"
+          onLayoutChanged={(layout) => {
+            const sizes = [layout.sidebar ?? 0, layout.main ?? 0];
             document.cookie = `react-resizable-panels:layout=${JSON.stringify(sizes)}`;
           }}
           className="h-full items-stretch flex-1"
         >
           <ResizablePanel
+            id="sidebar"
             ref={sidebarPanelRef}
-            defaultSize={defaultLayout[0]}
-            collapsedSize={navCollapsedSize}
+            defaultSize={panelDefaultSize(defaultLayout[0])}
+            collapsedSize={RAIL_WIDTH}
             collapsible={true}
-            minSize={isMobile ? 0 : 24}
-            maxSize={isMobile ? 8 : 30}
-            onCollapse={() => {
-              setIsCollapsed(true);
-              document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(true)}`;
-            }}
-            onExpand={() => {
-              setIsCollapsed(false);
-              document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(false)}`;
+            minSize={isMobile ? "0%" : "24%"}
+            maxSize={isMobile ? "8%" : "30%"}
+            onResize={() => {
+              const collapsed = sidebarPanelRef.current?.isCollapsed() ?? false;
+              setIsCollapsed(collapsed);
+              document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(collapsed)}`;
             }}
             className={cn(
               "transition-all duration-300 ease-in-out",
@@ -399,7 +402,11 @@ export function ChatLayout({
             {renderSidebarContent()}
           </ResizablePanel>
           <ResizableHandle withHandle onDoubleClick={handleDoubleClick} />
-          <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
+          <ResizablePanel
+            id="main"
+            defaultSize={panelDefaultSize(defaultLayout[1])}
+            minSize="30%"
+          >
             {renderMainContent()}
           </ResizablePanel>
         </ResizablePanelGroup>

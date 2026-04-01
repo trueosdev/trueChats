@@ -30,14 +30,8 @@ export default function Home() {
   return (
     <div
       className="z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden text-sm bg-background"
-      style={{
-        borderRadius: `calc(var(--frame-inset-pct) / 100 * var(--radius))`,
-        borderWidth: `min(calc(var(--frame-inset-pct) * 0.1px), 1px)`,
-        borderStyle: "solid",
-        borderColor: `hsl(var(--border))`,
-      }}
     >
-      <ChatLayout defaultLayout={defaultLayout} navCollapsedSize={8} />
+      <ChatLayout defaultLayout={defaultLayout} />
     </div>
   );
 }

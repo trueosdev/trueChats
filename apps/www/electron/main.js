@@ -6,10 +6,12 @@ const {
   session,
   systemPreferences,
 } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const iconPath = path.join(__dirname, "icons", "icon.png");
 
 const APP_NAME = "trueChats";
+const PROD_URL = process.env.ELECTRON_START_URL || "https://chats.trueos.dev";
 
 function buildMenu() {
   const isMac = process.platform === "darwin";
@@ -122,7 +124,8 @@ function createWindow() {
     },
   });
 
-  win.loadURL("http://localhost:3000");
+  const startUrl = app.isPackaged ? PROD_URL : "http://localhost:3000";
+  win.loadURL(startUrl);
 }
 
 app.setName(APP_NAME);
@@ -180,6 +183,19 @@ app.whenReady().then(async () => {
   }
 
   createWindow();
+
+  // In packaged builds, check for updates from the configured provider.
+  if (app.isPackaged) {
+    autoUpdater.autoDownload = true;
+
+    autoUpdater.on("update-downloaded", () => {
+      autoUpdater.quitAndInstall();
+    });
+
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.warn("[electron] auto-update check failed:", err?.message ?? err);
+    });
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

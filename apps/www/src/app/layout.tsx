@@ -11,8 +11,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { TerminalModeProvider } from "@/components/terminal/terminal-mode-provider";
-import { FrameInsetProvider } from "@/components/frame-inset/frame-inset-provider";
-import { BorderAdjustBar } from "@/components/frame-inset/border-adjust-bar";
 import { CallProvider } from "@/components/call/call-provider";
 import { IncomingCallOverlay } from "@/components/call/incoming-call-overlay";
 import { ActiveCallView } from "@/components/call/active-call-view";
@@ -52,14 +50,11 @@ export default function RootLayout({
           <AuthProvider>
             <CallProvider>
               <ThreadCallProvider>
-                <FrameInsetProvider>
-                  <TerminalModeProvider>
-                    <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch p-[var(--frame-inset)] pt-[max(var(--frame-inset),var(--electron-titlebar-height))] transition-[padding] duration-200 ease-out">
-                      {children}
-                    </main>
-                  </TerminalModeProvider>
-                  <BorderAdjustBar />
-                </FrameInsetProvider>
+                <TerminalModeProvider>
+                  <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch pt-[var(--electron-titlebar-height)]">
+                    {children}
+                  </main>
+                </TerminalModeProvider>
                 <IncomingCallOverlay />
                 <ActiveCallView />
                 <MinimizedCallPill />

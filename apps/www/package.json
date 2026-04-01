@@ -1,7 +1,10 @@
 {
   "name": "shadcn-chat",
   "version": "0.1.0",
+  "description": "trueChats desktop app",
+  "author": "trueosdev",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm:dev:web:ensure\" \"npm:dev:electron\"",
     "dev:web": "next dev",
@@ -9,20 +12,55 @@
     "dev:electron": "wait-on tcp:3000 && electron electron/main.js",
     "icons:generate": "bash electron/icons/generate-icons.sh electron/icons/icon-source.png 8",
     "build": "next build",
+    "dist": "npm run build && electron-builder --publish never",
+    "release": "npm run build && electron-builder --publish always",
     "start": "next start",
     "lint": "next lint",
     "check-types": "tsc --noEmit"
   },
   "build": {
+    "appId": "dev.trueos.chats.desktop",
+    "productName": "trueChats",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "trueosdev",
+        "repo": "trueChat"
+      }
+    ],
+    "electronVersion": "37.4.0",
     "mac": {
       "icon": "electron/icons/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "trueChats uses the microphone for voice and video calls.",
         "NSCameraUsageDescription": "trueChats uses the camera for video calls."
       }
     },
-    "win": { "icon": "electron/icons/icon.ico" },
-    "linux": { "icon": "electron/icons/icon.png" }
+    "win": {
+      "icon": "electron/icons/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "icon": "electron/icons/icon.png",
+      "target": [
+        "AppImage"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
@@ -53,6 +91,7 @@
     "lucide-react": "^1.7.0",
     "next": "^16.0.7",
     "next-themes": "^0.3.0",
+    "electron-updater": "^6.6.2",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-image-crop": "^11.0.10",
@@ -64,7 +103,8 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "electron": "^37.4.0",
+    "electron": "37.4.0",
+    "electron-builder": "^26.0.12",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
