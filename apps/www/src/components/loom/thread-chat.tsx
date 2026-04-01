@@ -1,20 +1,20 @@
 "use client"
 
-import { useEffect, useState, useCallback } from 'react'
-import { Hash, Lock, Video, PhoneOff, Phone, Slash } from 'lucide-react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Hash, Lock, Video, PhoneOff, Phone, PhoneCall } from 'lucide-react'
 import {
   LiveKitRoom,
   RoomAudioRenderer,
   GridLayout,
   ParticipantTile,
   useTracks,
-  useRoomContext,
 } from '@livekit/components-react'
 import '@livekit/components-styles'
 import '@/app/livekit-overrides.css'
 import { Track } from 'livekit-client'
 import { Button } from '@/components/ui/button'
 import { LiveKitLucideControlBar } from '@/components/call/livekit-lucide-control-bar'
+import { useThreadCall } from '@/components/call/thread-call-provider'
 import { ExpandableChatHeader } from '@shadcn-chat/ui'
 import { ChatList } from '../chat/chat-list'
 import ChatBottombar from '../chat/chat-bottombar'
@@ -96,7 +96,7 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
   }
 
   if (thread.category === 'voice') {
-    return <VoiceChannelView thread={thread} />
+    return <VoiceChannelView thread={thread} loom={loom} />
   }
 
   return (
@@ -136,9 +136,7 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
   )
 }
 
-function CallControls() {
-  const room = useRoomContext()
-
+function CallControls({ onLeave }: { onLeave: () => void }) {
   return (
     <div className="livekit-lucide-call-controls flex items-center justify-center gap-3 py-4 shrink-0 overflow-visible">
       <LiveKitLucideControlBar />
@@ -147,7 +145,7 @@ function CallControls() {
         size="icon"
         variant="ghost"
         className="h-11 w-11 shrink-0 rounded-full bg-red-600 text-white hover:bg-red-700 hover:text-white"
-        onClick={() => room.disconnect()}
+        onClick={onLeave}
       >
         <PhoneOff className="h-5 w-5" />
       </Button>
@@ -173,17 +171,43 @@ function CallGrid() {
   )
 }
 
-function VoiceChannelView({ thread }: { thread: Thread }) {
+function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
   const { user, session } = useAuth()
-  const [joined, setJoined] = useState(false)
-  const [livekitToken, setLivekitToken] = useState<string | null>(null)
+  const threadCall = useThreadCall()
   const [error, setError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [lobbyParticipantCount, setLobbyParticipantCount] = useState<number | null>(null)
   const [lobbyStatus, setLobbyStatus] = useState<'loading' | 'ready' | 'error'>('loading')
 
-  const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL
   const roomName = `thread-${thread.id}`
+
+  const isConnectedToThisThread =
+    threadCall.threadCallState === 'connected' && threadCall.threadId === thread.id
+
+  const threadCallStateRef = useRef(threadCall.threadCallState)
+  threadCallStateRef.current = threadCall.threadCallState
+  const threadCallThreadIdRef = useRef(threadCall.threadId)
+  threadCallThreadIdRef.current = threadCall.threadId
+  const setMinimizedRef = useRef(threadCall.setMinimized)
+  setMinimizedRef.current = threadCall.setMinimized
+
+  useEffect(() => {
+    if (isConnectedToThisThread) {
+      threadCall.setMinimized(false)
+    }
+  }, [isConnectedToThisThread])
+
+  useEffect(() => {
+    const tid = thread.id
+    return () => {
+      if (
+        threadCallStateRef.current === 'connected' &&
+        threadCallThreadIdRef.current === tid
+      ) {
+        setMinimizedRef.current(true)
+      }
+    }
+  }, [thread.id])
 
   const fetchToken = useCallback(async () => {
     if (!session?.access_token || !user) return null
@@ -224,22 +248,22 @@ function VoiceChannelView({ thread }: { thread: Thread }) {
         setError('Not authenticated. Please sign in again.')
         return
       }
-      setLivekitToken(token)
-      setJoined(true)
+      threadCall.joinThreadCall({
+        threadId: thread.id,
+        threadName: thread.name,
+        loomId: loom.id,
+        token,
+        roomName,
+      })
     } catch (err: any) {
       setError(err.message || 'Failed to join call')
     } finally {
       setConnecting(false)
     }
-  }, [fetchToken])
-
-  const handleLeave = useCallback(() => {
-    setJoined(false)
-    setLivekitToken(null)
-  }, [])
+  }, [fetchToken, threadCall.joinThreadCall, thread.id, thread.name, loom.id, roomName])
 
   useEffect(() => {
-    if (joined || !livekitUrl) return
+    if (isConnectedToThisThread || !threadCall.livekitUrl) return
     if (!session?.access_token) {
       setLobbyStatus('error')
       setLobbyParticipantCount(null)
@@ -280,7 +304,7 @@ function VoiceChannelView({ thread }: { thread: Thread }) {
       cancelled = true
       clearInterval(interval)
     }
-  }, [joined, livekitUrl, session?.access_token, roomName])
+  }, [isConnectedToThisThread, threadCall.livekitUrl, session?.access_token, roomName])
 
   const lobbySubtitle =
     lobbyStatus === 'loading' && lobbyParticipantCount === null
@@ -293,7 +317,7 @@ function VoiceChannelView({ thread }: { thread: Thread }) {
             ? '1 person is in the call'
             : `${lobbyParticipantCount} people are in the call`
 
-  if (!livekitUrl) {
+  if (!threadCall.livekitUrl) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center p-8">
         <p className="text-sm text-red-600 dark:text-red-400">
@@ -325,19 +349,19 @@ function VoiceChannelView({ thread }: { thread: Thread }) {
         </div>
       )}
 
-      {joined && livekitToken ? (
+      {isConnectedToThisThread && threadCall.livekitToken ? (
         <div className="flex-1 flex flex-col min-h-0" data-lk-theme="default">
           <LiveKitRoom
-            serverUrl={livekitUrl}
-            token={livekitToken}
+            serverUrl={threadCall.livekitUrl}
+            token={threadCall.livekitToken}
             connect={true}
             audio={true}
             video={false}
-            onDisconnected={handleLeave}
+            onDisconnected={threadCall.leaveThreadCall}
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
           >
             <CallGrid />
-            <CallControls />
+            <CallControls onLeave={threadCall.leaveThreadCall} />
             <RoomAudioRenderer />
           </LiveKitRoom>
         </div>
@@ -350,10 +374,13 @@ function VoiceChannelView({ thread }: { thread: Thread }) {
           <button
             onClick={handleJoin}
             disabled={connecting}
-            className="px-4 py-4 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium text-sm transition-colors"
+            className="px-4 py-4 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium text-sm transition-colors flex items-center justify-center"
           >
-            {connecting ? 'Connecting...' : ' '}
-            <Phone size={20} className="text-white" />
+            {connecting ? (
+              <PhoneCall size={20} className="text-white animate-pulse" />
+            ) : (
+              <Phone size={20} className="text-white" />
+            )}
           </button>
         </div>
       )}

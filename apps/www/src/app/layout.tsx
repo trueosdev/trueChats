@@ -17,6 +17,8 @@ import { CallProvider } from "@/components/call/call-provider";
 import { IncomingCallOverlay } from "@/components/call/incoming-call-overlay";
 import { ActiveCallView } from "@/components/call/active-call-view";
 import { MinimizedCallPill } from "@/components/call/minimized-call-pill";
+import { ThreadCallProvider } from "@/components/call/thread-call-provider";
+import { MinimizedThreadCallPill } from "@/components/call/minimized-thread-call-pill";
 import { ElectronTitlebar } from "@/components/electron-titlebar";
 
 const questrial = Questrial({
@@ -49,17 +51,20 @@ export default function RootLayout({
           <ElectronTitlebar />
           <AuthProvider>
             <CallProvider>
-              <FrameInsetProvider>
-                <TerminalModeProvider>
-                  <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch p-[var(--frame-inset)] pt-[max(var(--frame-inset),var(--electron-titlebar-height))] transition-[padding] duration-200 ease-out">
-                    {children}
-                  </main>
-                </TerminalModeProvider>
-                <BorderAdjustBar />
-              </FrameInsetProvider>
-              <IncomingCallOverlay />
-              <ActiveCallView />
-              <MinimizedCallPill />
+              <ThreadCallProvider>
+                <FrameInsetProvider>
+                  <TerminalModeProvider>
+                    <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch p-[var(--frame-inset)] pt-[max(var(--frame-inset),var(--electron-titlebar-height))] transition-[padding] duration-200 ease-out">
+                      {children}
+                    </main>
+                  </TerminalModeProvider>
+                  <BorderAdjustBar />
+                </FrameInsetProvider>
+                <IncomingCallOverlay />
+                <ActiveCallView />
+                <MinimizedCallPill />
+                <MinimizedThreadCallPill />
+              </ThreadCallProvider>
             </CallProvider>
           </AuthProvider>
         </ThemeProvider>
