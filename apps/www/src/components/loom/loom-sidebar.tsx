@@ -33,7 +33,7 @@ export function LoomSidebar({
   loading = false,
 }: LoomSidebarProps) {
   const loomHoverEffect =
-    "hover:rounded-xl hover:bg-black/60 dark:hover:bg-white/60 hover:shadow-[0_0_8px_2px_rgba(0,0,0,0.03)] dark:hover:shadow-[0_0_8px_2px_rgba(255,255,255,0.03)]"
+    "hover:rounded-xl hover:bg-black/20 dark:hover:bg-white/20 hover:shadow-[0_0_8px_2px_rgba(0,0,0,0.03)] dark:hover:shadow-[0_0_8px_2px_rgba(255,255,255,0.03)]"
 
   return (
     <div
@@ -47,7 +47,7 @@ export function LoomSidebar({
             <button
               onClick={onDmsSelect}
               className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200",
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 hover:text-black dark:hover:text-white",
                 loomHoverEffect,
                 viewMode === 'dms'
                   ? "bg-black text-white dark:bg-white dark:text-black rounded-xl"

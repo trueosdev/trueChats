@@ -1,8 +1,7 @@
 import {
   FileImage,
   Paperclip,
-  SendHorizontal,
-  ThumbsUp,
+  Send,
   X,
   Loader2,
 } from "lucide-react";
@@ -148,18 +147,6 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
-
-  const handleThumbsUp = async () => {
-    if (!user || !conversationId) return;
-    
-    setSelectedLoading(true);
-    const send = customSendMessage || sendMessage;
-    const sentMessage = await send(conversationId, "👍", user.id);
-    if (sentMessage) {
-      addMessage(sentMessage);
-    }
-    setSelectedLoading(false);
   };
 
   const handleSend = async () => {
@@ -323,9 +310,9 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
             onChange={handleInputChange}
             onPaste={handlePaste}
             placeholder="Type a message..."
-            className="rounded-full border-none dark:bg-white/5 bg-black/5"
+            className="rounded-full border-none dark:bg-white/5 bg-black/5 pr-[5.25rem]"
           />
-          <div className="absolute right-4 bottom-2  ">
+          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
             <EmojiPicker
               onChange={(value) => {
                 setMessage(message + value);
@@ -334,34 +321,26 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
                 }
               }}
             />
+            <Button
+              className="h-9 w-9 shrink-0"
+              onClick={handleSend}
+              disabled={
+                selectedLoading ||
+                uploading ||
+                (!message.trim() && !selectedFile)
+              }
+              variant="ghost"
+              size="icon"
+              type="button"
+            >
+              {uploading ? (
+                <Loader2 size={22} className="text-muted-foreground animate-spin" />
+              ) : (
+                <Send size={22} className="text-muted-foreground" />
+              )}
+            </Button>
           </div>
         </motion.div>
-
-        {message.trim() || selectedFile ? (
-          <Button
-            className="h-9 w-9 shrink-0"
-            onClick={handleSend}
-            disabled={selectedLoading || uploading}
-            variant="ghost"
-            size="icon"
-          >
-            {uploading ? (
-              <Loader2 size={22} className="text-muted-foreground animate-spin" />
-            ) : (
-              <SendHorizontal size={22} className="text-muted-foreground" />
-            )}
-          </Button>
-        ) : (
-          <Button
-            className="h-9 w-9 shrink-0"
-            onClick={handleThumbsUp}
-            disabled={selectedLoading}
-            variant="ghost"
-            size="icon"
-          >
-            <ThumbsUp size={22} className="text-muted-foreground" />
-          </Button>
-        )}
       </AnimatePresence>
       </div>
     </div>

@@ -39,7 +39,7 @@ const chatBubbleMessageVariants = cva("p-4", {
         },
         layout: {
             default: "",
-            ai: "border-t w-full rounded-none bg-transparent",
+            ai: "border-t border-black/10 dark:border-white/10 w-full rounded-none bg-transparent",
         },
     },
     defaultVariants: {
@@ -49,7 +49,7 @@ const chatBubbleMessageVariants = cva("p-4", {
 });
 const ChatBubbleMessage = React.forwardRef(({ className, variant, layout, isLoading = false, children, ...props }, ref) => (_jsx("div", { className: cn(chatBubbleMessageVariants({ variant, layout, className }), "break-words max-w-full whitespace-pre-wrap text-left"), ref: ref, ...props, children: isLoading ? (_jsx("div", { className: "flex items-center space-x-2", children: _jsx(MessageLoading, {}) })) : (children) })));
 ChatBubbleMessage.displayName = "ChatBubbleMessage";
-const ChatBubbleTimestamp = ({ timestamp, createdAt, className, ...props }) => {
+const ChatBubbleTimestamp = React.forwardRef(({ timestamp, createdAt, className, ...props }, ref) => {
     let formattedDate = null;
     if (createdAt) {
         try {
@@ -66,8 +66,9 @@ const ChatBubbleTimestamp = ({ timestamp, createdAt, className, ...props }) => {
             // Invalid date, ignore
         }
     }
-    return (_jsxs("div", { className: cn("text-xs mt-2 text-left flex flex-col", className), ...props, children: [formattedDate && (_jsx("div", { children: formattedDate })), _jsx("div", { children: timestamp })] }));
-};
+    return (_jsxs("div", { ref: ref, className: cn("text-xs mt-2 text-left flex flex-col", className), ...props, children: [formattedDate && (_jsx("div", { children: formattedDate })), _jsx("div", { children: timestamp })] }));
+});
+ChatBubbleTimestamp.displayName = "ChatBubbleTimestamp";
 const ChatBubbleAction = ({ icon, onClick, className, variant = "ghost", size = "icon", ...props }) => (_jsx(Button, { variant: variant, size: size, className: className, onClick: onClick, ...props, children: icon }));
 const ChatBubbleActionWrapper = React.forwardRef(({ variant, className, children, ...props }, ref) => (_jsx("div", { ref: ref, className: cn("absolute top-1/2 -translate-y-1/2 flex opacity-0 group-hover:opacity-100 transition-opacity duration-200", variant === "sent"
         ? "-left-1 -translate-x-full flex-row-reverse"

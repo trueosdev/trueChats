@@ -29,14 +29,14 @@ const ExpandableChat = ({ className, position = "bottom-right", size = "md", ico
     const [isOpen, setIsOpen] = useState(false);
     const chatRef = useRef(null);
     const toggleChat = () => setIsOpen(!isOpen);
-    return (_jsxs("div", { className: cn(`fixed ${chatConfig.positions[position]} z-50`, className), ...props, children: [_jsxs("div", { ref: chatRef, className: cn("flex flex-col bg-background border sm:rounded-lg shadow-md overflow-hidden transition-all duration-250 ease-out sm:absolute sm:w-[90vw] sm:h-[80vh] fixed inset-0 w-full h-full sm:inset-auto", chatConfig.chatPositions[position], chatConfig.dimensions[size], isOpen ? chatConfig.states.open : chatConfig.states.closed, className), children: [children, _jsx(Button, { variant: "ghost", size: "icon", className: "absolute top-2 right-2 sm:hidden", onClick: toggleChat, children: _jsx(X, { className: "h-4 w-4" }) })] }), _jsx(ExpandableChatToggle, { icon: icon, isOpen: isOpen, toggleChat: toggleChat })] }));
+    return (_jsxs("div", { className: cn(`fixed ${chatConfig.positions[position]} z-50`, className), ...props, children: [_jsxs("div", { ref: chatRef, className: cn("flex flex-col bg-background border border-black/10 dark:border-white/10 sm:rounded-lg shadow-md overflow-hidden transition-all duration-250 ease-out sm:absolute sm:w-[90vw] sm:h-[80vh] fixed inset-0 w-full h-full sm:inset-auto", chatConfig.chatPositions[position], chatConfig.dimensions[size], isOpen ? chatConfig.states.open : chatConfig.states.closed, className), children: [children, _jsx(Button, { variant: "ghost", size: "icon", className: "absolute top-2 right-2 sm:hidden", onClick: toggleChat, children: _jsx(X, { className: "h-4 w-4" }) })] }), _jsx(ExpandableChatToggle, { icon: icon, isOpen: isOpen, toggleChat: toggleChat })] }));
 };
 ExpandableChat.displayName = "ExpandableChat";
-const ExpandableChatHeader = ({ className, ...props }) => (_jsx("div", { className: cn("flex items-center justify-between p-4 border-b", className), ...props }));
+const ExpandableChatHeader = ({ className, ...props }) => (_jsx("div", { className: cn("flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10", className), ...props }));
 ExpandableChatHeader.displayName = "ExpandableChatHeader";
 const ExpandableChatBody = ({ className, ...props }) => _jsx("div", { className: cn("flex-grow overflow-y-auto", className), ...props });
 ExpandableChatBody.displayName = "ExpandableChatBody";
-const ExpandableChatFooter = ({ className, ...props }) => _jsx("div", { className: cn("border-t p-4", className), ...props });
+const ExpandableChatFooter = ({ className, ...props }) => (_jsx("div", { className: cn("border-t border-black/10 dark:border-white/10 p-4", className), ...props }));
 ExpandableChatFooter.displayName = "ExpandableChatFooter";
 const ExpandableChatToggle = ({ className, icon, isOpen, toggleChat, ...props }) => (_jsx(Button, { variant: "default", onClick: toggleChat, className: cn("w-14 h-14 rounded-full shadow-md flex items-center justify-center hover:shadow-lg hover:shadow-black/30 transition-all duration-300", className), ...props, children: isOpen ? (_jsx(X, { className: "h-6 w-6" })) : (icon || _jsx(MessageCircle, { className: "h-6 w-6" })) }));
 ExpandableChatToggle.displayName = "ExpandableChatToggle";

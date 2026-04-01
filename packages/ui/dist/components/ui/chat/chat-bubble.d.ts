@@ -26,7 +26,7 @@ interface ChatBubbleTimestampProps extends React.HTMLAttributes<HTMLDivElement> 
     timestamp: string;
     createdAt?: string;
 }
-declare const ChatBubbleTimestamp: React.FC<ChatBubbleTimestampProps>;
+declare const ChatBubbleTimestamp: React.ForwardRefExoticComponent<ChatBubbleTimestampProps & React.RefAttributes<HTMLDivElement>>;
 type ChatBubbleActionProps = ButtonProps & {
     icon: React.ReactNode;
 };

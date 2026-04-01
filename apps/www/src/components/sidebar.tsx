@@ -201,12 +201,13 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                       onClick={() => onChatSelect?.(chat.id)}
                       className={cn(
                         buttonVariants({ variant: "ghost", size: "icon" }),
-                        "h-9 w-9 relative flex items-center justify-center rounded-full p-0",
+                        "h-9 w-9 relative flex items-center justify-center rounded-full p-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+                        chat.variant === "secondary" && "focus-visible:bg-black/10 dark:focus-visible:bg-white/10",
                       )}
                     >
                       <div className={cn(
-                        "h-9 w-9 rounded-full",
-                        chat.variant === "secondary" && "ring-1 ring-black/20 dark:ring-white/20"
+                        "h-9 w-9 rounded-full transition-colors",
+                        chat.variant === "secondary" && "bg-black/10 dark:bg-white/10"
                       )}>
                         <Avatar className="h-9 w-9">
                           <ThemeAvatarImage
@@ -235,11 +236,14 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
               key={chat.id}
               onClick={() => onChatSelect?.(chat.id)}
               className={cn(
-                buttonVariants({ variant: chat.variant, size: "xl" }),
+                buttonVariants({ variant: "ghost", size: "xl" }),
                 chat.variant === "secondary" &&
-                  "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white shrink",
-                chat.variant === "ghost" && "border border-transparent",
-                "justify-start gap-3 px-2 py-3",
+                  "bg-black/[0.08] dark:bg-white/[0.08] hover:bg-black/[0.12] dark:hover:bg-white/[0.12]",
+                "justify-start gap-3 px-2 py-3 rounded-xl",
+                "focus-visible:ring-0 focus-visible:ring-offset-0",
+                chat.variant === "secondary"
+                  ? "focus-visible:bg-black/[0.12] dark:focus-visible:bg-white/[0.12]"
+                  : "focus-visible:bg-accent",
               )}
             >
               <div className="relative shrink-0">

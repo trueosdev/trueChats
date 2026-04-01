@@ -13,6 +13,8 @@ export interface CreateLoomParams {
 export async function createLoom(params: CreateLoomParams): Promise<Loom | null> {
   const { name, description, iconName, iconUrl, visibility = 'private', createdBy } = params
 
+  // created_by is set by DB default auth.uid() (see supabase/012) so INSERT RETURNING
+  // passes RLS and always matches the session. We still need createdBy for loom_members.
   const { data: loom, error: loomError } = await supabase
     .from('looms')
     .insert({
@@ -21,7 +23,6 @@ export async function createLoom(params: CreateLoomParams): Promise<Loom | null>
       icon_name: iconName || 'Users',
       icon_url: iconUrl || null,
       visibility,
-      created_by: createdBy,
     })
     .select()
     .single()
