@@ -77,3 +77,131 @@
   color: hsl(var(--muted-foreground));
   opacity: 1;
 }
+
+/* Lucide LiveKit controls (thread + DM): round toggles; device menu = Lucide ChevronUp, no CSS chevron */
+.livekit-lucide-call-controls .lk-control-bar {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  gap: 0.75rem;
+}
+
+.livekit-lucide-call-controls .lk-button-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: auto;
+  background: transparent;
+}
+
+.livekit-lucide-call-controls .lk-button-group > .lk-button:first-child {
+  border-radius: 9999px !important;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+}
+
+.livekit-lucide-call-controls .lk-button-group-menu {
+  height: auto;
+  flex-shrink: 0;
+}
+
+/* Chevron only — no circular chrome (main mic/camera toggles stay round) */
+.livekit-lucide-call-controls .lk-button-group-menu > .lk-button {
+  border-radius: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: unset !important;
+  padding: 0.25rem 0.35rem;
+  background-color: transparent !important;
+  color: rgb(0 0 0 / 0.55);
+}
+
+/* Chevron hover/open: tint the glyph only (no background “box”) */
+.livekit-lucide-call-controls .lk-button-group-menu > .lk-button:hover:not(:disabled) {
+  background-color: transparent !important;
+  color: rgb(0 0 0 / 0.92);
+}
+
+.livekit-lucide-call-controls .lk-button-group-menu > .lk-button[aria-pressed="true"] {
+  background-color: transparent !important;
+  color: rgb(0 0 0 / 0.92);
+}
+
+/* Device menu uses Lucide ChevronUp; hide LiveKit CSS chevron */
+.livekit-lucide-call-controls .lk-button-group-menu > .lk-button.lk-button-menu::after {
+  display: none;
+  content: none;
+}
+
+.dark .livekit-lucide-call-controls .lk-button-group-menu > .lk-button,
+.livekit-lucide-call-controls--dm .lk-button-group-menu > .lk-button {
+  color: rgb(255 255 255 / 0.55);
+}
+
+.dark .livekit-lucide-call-controls .lk-button-group-menu > .lk-button:hover:not(:disabled),
+.livekit-lucide-call-controls--dm .lk-button-group-menu > .lk-button:hover:not(:disabled) {
+  background-color: transparent !important;
+  color: rgb(255 255 255 / 0.95);
+}
+
+.dark .livekit-lucide-call-controls .lk-button-group-menu > .lk-button[aria-pressed="true"],
+.livekit-lucide-call-controls--dm .lk-button-group-menu > .lk-button[aria-pressed="true"] {
+  background-color: transparent !important;
+  color: rgb(255 255 255 / 0.95);
+}
+
+.livekit-lucide-call-controls .lk-control-bar > .lk-button {
+  border-radius: 9999px !important;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+}
+
+.livekit-lucide-call-controls .lk-button {
+  background-color: rgb(0 0 0 / 0.08);
+  color: rgb(0 0 0 / 0.85);
+}
+
+.livekit-lucide-call-controls .lk-button:hover:not(:disabled) {
+  background-color: rgb(0 0 0 / 0.12);
+}
+
+.livekit-lucide-call-controls .lk-button[data-lk-source="microphone"][data-lk-enabled="false"],
+.livekit-lucide-call-controls .lk-button[data-lk-source="camera"][data-lk-enabled="false"] {
+  background-color: rgb(239 68 68 / 0.15);
+  color: rgb(185 28 28);
+}
+
+.livekit-lucide-call-controls .lk-button[data-lk-source="monitor_up"][data-lk-enabled="true"] {
+  background-color: rgb(59 130 246 / 0.18);
+  color: rgb(29 78 216);
+}
+
+.dark .livekit-lucide-call-controls .lk-button,
+.livekit-lucide-call-controls--dm .lk-button {
+  background-color: rgb(255 255 255 / 0.1);
+  color: rgb(255 255 255 / 0.9);
+}
+
+.dark .livekit-lucide-call-controls .lk-button:hover:not(:disabled),
+.livekit-lucide-call-controls--dm .lk-button:hover:not(:disabled) {
+  background-color: rgb(255 255 255 / 0.15);
+}
+
+.dark .livekit-lucide-call-controls .lk-button[data-lk-source="microphone"][data-lk-enabled="false"],
+.dark .livekit-lucide-call-controls .lk-button[data-lk-source="camera"][data-lk-enabled="false"],
+.livekit-lucide-call-controls--dm .lk-button[data-lk-source="microphone"][data-lk-enabled="false"],
+.livekit-lucide-call-controls--dm .lk-button[data-lk-source="camera"][data-lk-enabled="false"] {
+  background-color: rgb(239 68 68 / 0.2);
+  color: rgb(248 113 113);
+}
+
+.dark .livekit-lucide-call-controls .lk-button[data-lk-source="monitor_up"][data-lk-enabled="true"],
+.livekit-lucide-call-controls--dm .lk-button[data-lk-source="monitor_up"][data-lk-enabled="true"] {
+  background-color: rgb(59 130 246 / 0.22);
+  color: rgb(147 197 253);
+}

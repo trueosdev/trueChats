@@ -1,5 +1,5 @@
 import { supabase } from '../supabase/client'
-import type { Thread, ThreadMessage, ThreadType } from '@/app/data'
+import type { Thread, ThreadMessage, ThreadType, ThreadCategory } from '@/app/data'
 import type { AttachmentData } from './attachments'
 import { getAvatarUrl } from '../utils'
 
@@ -9,11 +9,12 @@ export interface CreateThreadParams {
   description?: string
   iconEmoji?: string
   type?: ThreadType
+  category?: ThreadCategory
   createdBy: string
 }
 
 export async function createThread(params: CreateThreadParams): Promise<Thread | null> {
-  const { loomId, name, description, iconEmoji, type = 'open', createdBy } = params
+  const { loomId, name, description, iconEmoji, type = 'open', category = 'text', createdBy } = params
 
   const { data, error } = await supabase
     .from('threads')
@@ -23,6 +24,7 @@ export async function createThread(params: CreateThreadParams): Promise<Thread |
       description: description || null,
       icon_emoji: iconEmoji || null,
       type,
+      category,
       created_by: createdBy,
     })
     .select()

@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  ControlBar,
   GridLayout,
   ParticipantTile,
   useTracks,
   useRemoteParticipants,
 } from "@livekit/components-react";
+import { LiveKitLucideControlBar } from "@/components/call/livekit-lucide-control-bar";
 import { Track } from "livekit-client";
 import { PhoneOff, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -138,17 +138,8 @@ function AudioOnlyView() {
 
       <RoomAudioRenderer />
 
-      <div className="flex items-center gap-3 mt-4 overflow-visible">
-        <ControlBar
-          variation="minimal"
-          controls={{
-            microphone: true,
-            camera: false,
-            screenShare: false,
-            leave: false,
-            chat: false,
-          }}
-        />
+      <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex items-center gap-3 mt-4 overflow-visible">
+        <LiveKitLucideControlBar microphone camera={false} screenShare={false} />
         <Button
           size="icon"
           variant="ghost"
@@ -187,17 +178,8 @@ function VideoView() {
           <ParticipantTile />
         </GridLayout>
       </div>
-      <div className="flex items-center justify-center gap-3 overflow-visible py-4 bg-black/80 backdrop-blur-sm">
-        <ControlBar
-          variation="minimal"
-          controls={{
-            microphone: true,
-            camera: true,
-            screenShare: true,
-            leave: false,
-            chat: false,
-          }}
-        />
+      <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex items-center justify-center gap-3 overflow-visible py-4 bg-black/80 backdrop-blur-sm">
+        <LiveKitLucideControlBar />
         <Button
           size="icon"
           variant="ghost"

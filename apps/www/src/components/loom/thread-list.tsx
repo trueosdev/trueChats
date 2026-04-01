@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from 'react'
-import { Lock, Users, Pin, LineSquiggle, Settings, ChevronLeft, Camera, Check, Loader2 } from 'lucide-react'
+import { Lock, Users, Pin, LineSquiggle, Settings, ChevronLeft, Camera, Check, Loader2, Video } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '../ui/button'
@@ -214,7 +214,7 @@ export function ThreadList({
                         selectedThreadId === thread.id && "bg-black/10 dark:bg-white/10"
                       )}
                     >
-                      {thread.type === 'private' ? <Lock size={14} /> : <LineSquiggle size={14} />}
+                      {thread.category === 'voice' ? <Video size={14} /> : thread.type === 'private' ? <Lock size={14} /> : <LineSquiggle size={14} />}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right">{thread.name}</TooltipContent>
@@ -318,7 +318,7 @@ export function ThreadList({
             <p className="text-xs text-black/30 dark:text-white/30">No threads yet</p>
             <button
               onClick={onCreateThread}
-              className="inline-flex items-center gap-1.5 text-xs text-black/45 dark:text-white/45 hover:text-black/65 dark:hover:text-white/65 mt-2"
+              className="inline-flex items-center gap-1.5 text-xs text-black/15 dark:text-white/15 hover:text-black/65 dark:hover:text-white/65 mt-2"
             >
               <LineSquiggle size={12} />
               <span>New Thread</span>
@@ -360,7 +360,7 @@ export function ThreadList({
             )}
             <button
               onClick={onCreateThread}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors text-sm text-black/30 dark:text-white/30 hover:bg-black/5 dark:hover:bg-white/5 hover:text-black/65 dark:hover:text-white/65 mt-1"
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors text-sm text-black/15 dark:text-white/15 hover:text-black/35 dark:hover:text-white/35 mt-1"
             >
               <LineSquiggle size={14} className="shrink-0" />
               <span>New Thread</span>
@@ -404,7 +404,7 @@ export function ThreadList({
                     <LoomIcon size={28} className="text-black/30 dark:text-white/30" />
                   )}
                 </div>
-                <div className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+                <div className="absolute inset-0 rounded-2xl flex items-center justify-center">
                   <Camera size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </button>
@@ -504,10 +504,12 @@ function ThreadItem({ thread, selected, onSelect }: {
         "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors text-sm",
         selected
           ? "bg-black/10 dark:bg-white/10 text-black dark:text-white font-medium"
-          : "text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-black dark:hover:text-white"
+          : "text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
       )}
     >
-      {thread.type === 'private' ? (
+      {thread.category === 'voice' ? (
+        <Video size={14} className="shrink-0" />
+      ) : thread.type === 'private' ? (
         <Lock size={14} className="shrink-0" />
       ) : (
         <LineSquiggle size={14} className="shrink-0" />

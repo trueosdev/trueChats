@@ -60,6 +60,7 @@ export interface ConversationWithUser {
 export type LoomVisibility = 'public' | 'private' | 'invite_only';
 export type LoomMemberRole = 'owner' | 'admin' | 'moderator' | 'member';
 export type ThreadType = 'open' | 'private';
+export type ThreadCategory = 'text' | 'voice';
 
 export interface Loom {
   id: string;
@@ -97,6 +98,7 @@ export interface Thread {
   description: string | null;
   icon_emoji: string | null;
   type: ThreadType;
+  category: ThreadCategory;
   is_pinned: boolean;
   is_archived: boolean;
   created_by: string;

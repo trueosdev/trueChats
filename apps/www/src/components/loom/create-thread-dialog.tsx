@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from 'react'
-import { X, Hash, Lock } from 'lucide-react'
+import { X, Hash, Lock, Video } from 'lucide-react'
 import { Button } from '../ui/button'
 import { createThread } from '@/lib/services/threads'
 import { useAuth } from '@/hooks/useAuth'
-import type { ThreadType } from '@/app/data'
+import type { ThreadType, ThreadCategory } from '@/app/data'
 
 interface CreateThreadDialogProps {
   open: boolean
@@ -19,6 +19,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [type, setType] = useState<ThreadType>('open')
+  const [category, setCategory] = useState<ThreadCategory>('text')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,6 +33,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
         name: name.trim(),
         description: description.trim() || undefined,
         type,
+        category,
         createdBy: String(user.id),
       })
       if (thread) {
@@ -50,6 +52,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
     setName('')
     setDescription('')
     setType('open')
+    setCategory('text')
     setError(null)
   }
 
@@ -78,10 +81,14 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
               Thread Name
             </label>
             <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg border border-black/10 dark:border-white/10 px-3">
-              <Hash size={16} className="text-black/40 dark:text-white/40 shrink-0" />
+              {category === 'voice' ? (
+                <Video size={16} className="text-black/40 dark:text-white/40 shrink-0" />
+              ) : (
+                <Hash size={16} className="text-black/40 dark:text-white/40 shrink-0" />
+              )}
               <input
                 type="text"
-                placeholder="general"
+                placeholder={category === 'voice' ? "voice-chat" : "general"}
                 value={name}
                 onChange={(e) => { setName(e.target.value); setError(null) }}
                 autoFocus
@@ -105,7 +112,37 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
 
           <div>
             <label className="block text-xs font-medium text-black/60 dark:text-white/60 mb-2 uppercase tracking-wide">
-              Type
+              Category
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCategory('text')}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  category === 'text'
+                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                    : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
+                }`}
+              >
+                <Hash size={14} />
+                Text
+              </button>
+              <button
+                onClick={() => setCategory('voice')}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  category === 'voice'
+                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                    : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
+                }`}
+              >
+                <Video size={14} />
+                Voice / Video
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-black/60 dark:text-white/60 mb-2 uppercase tracking-wide">
+              Access
             </label>
             <div className="flex gap-2">
               <button
