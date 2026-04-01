@@ -24,9 +24,9 @@
     --accent-foreground: 0 0% 9%;
     --destructive: 0 0% 9%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 9%;
-    --input: 0 0% 100%;
-    --ring: 0 0% 9%;
+    --border: 0 0% 0% / 0.1;
+    --input: 0 0% 0% / 0.1;
+    --ring: 0 0% 0% / 0.2;
     --radius: 1rem;
     /* 0 = full window (no frame). 1–100 = outer padding scales up; 100 = old default framed window. */
     --frame-inset-pct: 100;
@@ -53,9 +53,9 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 0% 100%;
     --destructive-foreground: 0 0% 9%;
-    --border: 0 0% 100%;
-    --input: 0 0% 9%;
-    --ring: 0 0% 100%;
+    --border: 0 0% 100% / 0.1;
+    --input: 0 0% 100% / 0.1;
+    --ring: 0 0% 100% / 0.2;
   }
 }
 
@@ -181,21 +181,21 @@
 
 /* React Image Crop Custom Styles */
 .ReactCrop__crop-selection {
-  border: 2px solid #181818CC !important;
+  border: 1px solid rgb(0 0 0 / 0.1) !important;
 }
 
 .dark .ReactCrop__crop-selection {
-  border: 2px solid #FFFFFFCC !important;
+  border: 1px solid rgb(255 255 255 / 0.1) !important;
 }
 
 .ReactCrop__drag-handle {
   background-color: #181818E6 !important;
-  border: 1px solid #181818CC !important;
+  border: 1px solid rgb(0 0 0 / 0.1) !important;
 }
 
 .dark .ReactCrop__drag-handle {
   background-color: #FFFFFFE6 !important;
-  border: 1px solid #FFFFFFCC !important;
+  border: 1px solid rgb(255 255 255 / 0.1) !important;
 }
 
 /* Cube Input Styles */

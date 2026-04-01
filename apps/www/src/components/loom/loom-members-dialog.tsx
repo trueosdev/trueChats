@@ -104,7 +104,7 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-white/10">
-      <div className="bg-white dark:bg-[#111] border border-black/15 dark:border-white/15 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-[#111] border border-black/10 dark:border-white/10 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/10 dark:border-white/10">
           <div>
             <h2 className="text-lg font-semibold text-black dark:text-white">

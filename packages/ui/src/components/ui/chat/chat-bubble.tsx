@@ -81,7 +81,7 @@ const chatBubbleMessageVariants = cva("p-4", {
     },
     layout: {
       default: "",
-      ai: "border-t w-full rounded-none bg-transparent",
+      ai: "border-t border-black/10 dark:border-white/10 w-full rounded-none bg-transparent",
     },
   },
   defaultVariants: {

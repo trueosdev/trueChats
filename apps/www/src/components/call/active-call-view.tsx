@@ -1,6 +1,7 @@
 "use client";
 
 import "@livekit/components-styles";
+import "@/app/livekit-overrides.css";
 import { useEffect, useState } from "react";
 import {
   LiveKitRoom,
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import { useCall } from "./call-provider";
+import { RemoteMicWaveform } from "./remote-mic-waveform";
 import { useAuth } from "@/hooks/useAuth";
 import { getAvatarUrl } from "@/lib/utils";
 
@@ -42,34 +44,41 @@ function ParticipantBubble({
   avatarUrl,
   name,
   isSpeaking,
+  liveWaveform,
 }: {
   avatarUrl: string | null;
   name: string;
   isSpeaking?: boolean;
+  /** Drive bars from remote mic FFT (Web Audio); only when speaking UI is shown */
+  liveWaveform?: boolean;
 }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="relative">
         <Avatar
-          className={`h-24 w-24 ring-2 transition-all duration-300 ${
-            isSpeaking ? "ring-green-400 ring-[3px]" : "ring-white/20"
+          className={`h-24 w-24 ring-1 transition-all duration-300 ${
+            isSpeaking ? "ring-green-400/80" : "ring-white/10"
           }`}
         >
           <ThemeAvatarImage avatarUrl={avatarUrl} alt={name} />
         </Avatar>
         {isSpeaking && (
           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-            <div className="flex items-end gap-[3px] h-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className="w-[3px] rounded-full bg-green-400"
-                  style={{
-                    animation: `waveform 1.2s ease-in-out ${i * 0.1}s infinite`,
-                  }}
-                />
-              ))}
-            </div>
+            {liveWaveform ? (
+              <RemoteMicWaveform barCount={5} className="h-4" />
+            ) : (
+              <div className="flex items-end gap-[3px] h-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="w-[3px] rounded-full bg-green-400"
+                    style={{
+                      animation: `waveform 1.2s ease-in-out ${i * 0.1}s infinite`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -103,10 +112,11 @@ function AudioOnlyView() {
             avatarUrl={remoteUser?.avatar ?? null}
             name={remoteUser?.name || ""}
             isSpeaking={remoteParticipants[0]?.isSpeaking}
+            liveWaveform
           />
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <div className="h-24 w-24 rounded-full ring-2 ring-white/10 bg-white/5 flex items-center justify-center">
+            <div className="h-24 w-24 rounded-full ring-1 ring-white/10 bg-white/5 flex items-center justify-center">
               <div className="flex items-end gap-[3px] h-4">
                 {[1, 2, 3].map((i) => (
                   <div
@@ -128,7 +138,7 @@ function AudioOnlyView() {
 
       <RoomAudioRenderer />
 
-      <div className="flex items-center gap-3 mt-4">
+      <div className="flex items-center gap-3 mt-4 overflow-visible">
         <ControlBar
           variation="minimal"
           controls={{
@@ -177,7 +187,7 @@ function VideoView() {
           <ParticipantTile />
         </GridLayout>
       </div>
-      <div className="flex items-center justify-center gap-3 py-4 bg-black/80 backdrop-blur-sm">
+      <div className="flex items-center justify-center gap-3 overflow-visible py-4 bg-black/80 backdrop-blur-sm">
         <ControlBar
           variation="minimal"
           controls={{
@@ -225,6 +235,7 @@ export function ActiveCallView() {
         video={callType === "video"}
         audio={true}
         onDisconnected={hangUp}
+        data-lk-theme="default"
         className="flex h-full flex-col"
       >
         {callType === "video" ? <VideoView /> : <AudioOnlyView />}

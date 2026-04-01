@@ -7,7 +7,7 @@ import { ChatInput } from "@shadcn-chat/ui";
 export const ChatInputExampleCode = `import { ChatInput } from "@shadcn-chat/ui"
 
 <form
-    className="relative rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1"
+    className="relative rounded-lg border border-black/10 dark:border-white/10 bg-background focus-within:ring-1 focus-within:ring-ring p-1"
   >
     <ChatInput
       placeholder="Type your message here..."
@@ -37,7 +37,7 @@ export const ChatInputExampleCode = `import { ChatInput } from "@shadcn-chat/ui"
 
 export default function ChatInputExample() {
   return (
-    <form className="relative rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring p-1">
+    <form className="relative rounded-lg border border-black/10 dark:border-white/10 bg-background focus-within:ring-1 focus-within:ring-ring p-1">
       <ChatInput
         placeholder="Type your message here..."
         className="min-h-12 resize-none rounded-lg bg-background border-0 p-3 shadow-none focus-visible:ring-0"

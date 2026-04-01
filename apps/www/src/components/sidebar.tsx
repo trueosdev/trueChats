@@ -92,7 +92,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                   >
                     <Mailbox size={23} />
                     {pendingRequestCount > 0 && (
-                      <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-1 border-background rounded-full" />
+                      <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
                     )}
                   </button>
                 </TooltipTrigger>
@@ -159,7 +159,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                 >
                   <Mailbox size={23} />
                   {pendingRequestCount > 0 && (
-                    <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-2 border-background rounded-full" />
+                    <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
                   )}
                 </button>
               </TooltipTrigger>
@@ -206,7 +206,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                     >
                       <div className={cn(
                         "h-9 w-9 rounded-full",
-                        chat.variant === "secondary" && "ring-2 ring-black dark:ring-white"
+                        chat.variant === "secondary" && "ring-1 ring-black/20 dark:ring-white/20"
                       )}>
                         <Avatar className="h-9 w-9">
                           <ThemeAvatarImage
@@ -216,7 +216,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                         </Avatar>
                       </div>
                       {chat.hasUnread && (
-                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-2 border-background rounded-full" />
+                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
                       )}
                       <span className="sr-only">{chat.name}</span>
                     </button>
@@ -250,7 +250,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                   />
                 </Avatar>
                 {chat.hasUnread && (
-                  <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border-2 border-background rounded-full" />
+                  <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
                 )}
               </div>
               <div className="flex flex-col max-w-28 text-left">

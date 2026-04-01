@@ -38,9 +38,9 @@ export function useColorTheme() {
     root.style.setProperty("--card-foreground", colors.foreground);
     root.style.setProperty("--popover", colors.background);
     root.style.setProperty("--popover-foreground", colors.foreground);
-    root.style.setProperty("--border", colors.foreground);
-    root.style.setProperty("--input", colors.secondary);
-    root.style.setProperty("--ring", colors.primary);
+    root.style.setProperty("--border", `${colors.foreground} / 0.1`);
+    root.style.setProperty("--input", `${colors.foreground} / 0.1`);
+    root.style.setProperty("--ring", `${colors.primary} / 0.35`);
     root.style.setProperty("--muted", colors.secondary);
     root.style.setProperty("--muted-foreground", colors.foreground);
     root.style.setProperty("--accent", colors.secondary);

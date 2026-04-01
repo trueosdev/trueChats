@@ -55,9 +55,9 @@ export function MessageSearchDialog({
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
       // Highlight the message briefly
-      element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2')
+      element.classList.add('ring-1', 'ring-blue-500', 'ring-offset-1')
       setTimeout(() => {
-        element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2')
+        element.classList.remove('ring-1', 'ring-blue-500', 'ring-offset-1')
       }, 2000)
     }
     onOpenChange(false)
@@ -67,7 +67,7 @@ export function MessageSearchDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-white/10">
-      <div className="bg-white dark:bg-black border border-black dark:border-white rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <div className="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-none">
           <div>
             <h2 className="text-xl font-semibold text-black dark:text-white">
@@ -96,7 +96,7 @@ export function MessageSearchDialog({
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-black dark:border-white rounded-md bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+              className="w-full pl-10 pr-4 py-2 border border-black/10 dark:border-white/10 rounded-md bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
               autoFocus
             />
           </div>

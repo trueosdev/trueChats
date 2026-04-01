@@ -246,7 +246,7 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
     <div className="relative w-full">
       {/* Reply preview */}
       {replyingTo && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 px-4 py-2 bg-muted/50 border border-border rounded-lg flex items-center justify-between gap-2 z-10">
+        <div className="absolute bottom-full left-0 right-0 mb-2 px-4 py-2 bg-muted/50 border border-black/10 dark:border-white/10 rounded-lg flex items-center justify-between gap-2 z-10">
           <div className="flex-1 min-w-0">
             <div className="text-xs text-muted-foreground mb-1">Replying to {replyingTo.name}</div>
             <div className="text-sm truncate">{replyingTo.message || '(attachment)'}</div>
@@ -323,7 +323,7 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
             onChange={handleInputChange}
             onPaste={handlePaste}
             placeholder="Type a message..."
-            className="rounded-full"
+            className="rounded-full border-none dark:bg-white/5 bg-black/5"
           />
           <div className="absolute right-4 bottom-2  ">
             <EmojiPicker

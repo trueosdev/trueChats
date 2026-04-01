@@ -14,7 +14,13 @@
     "check-types": "tsc --noEmit"
   },
   "build": {
-    "mac": { "icon": "electron/icons/icon.icns" },
+    "mac": {
+      "icon": "electron/icons/icon.icns",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "trueChats uses the microphone for voice and video calls.",
+        "NSCameraUsageDescription": "trueChats uses the camera for video calls."
+      }
+    },
     "win": { "icon": "electron/icons/icon.ico" },
     "linux": { "icon": "electron/icons/icon.png" }
   },

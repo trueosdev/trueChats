@@ -1,4 +1,11 @@
-const { app, BrowserWindow, Menu, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  shell,
+  session,
+  systemPreferences,
+} = require("electron");
 const path = require("path");
 const iconPath = path.join(__dirname, "icons", "icon.png");
 
@@ -120,7 +127,52 @@ function createWindow() {
 
 app.setName(APP_NAME);
 
-app.whenReady().then(() => {
+/**
+ * Grant Chromium media permissions so getUserMedia / LiveKit can run.
+ * Single-window app loads only our UI (localhost in dev; set loadURL for prod).
+ */
+function setupMediaPermissions() {
+  const ses = session.defaultSession;
+
+  ses.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === "media" || permission === "display-capture") {
+      callback(true);
+      return;
+    }
+    callback(false);
+  });
+
+  ses.setPermissionCheckHandler((_webContents, permission) => {
+    if (permission === "media" || permission === "display-capture") {
+      return true;
+    }
+    return undefined;
+  });
+}
+
+/**
+ * macOS: trigger TCC prompts so the app appears in Privacy → Microphone / Camera.
+ * Electron’s in-page prompt alone is often not enough for the OS gate.
+ */
+async function ensureMacOSMediaAccess() {
+  if (process.platform !== "darwin") return;
+
+  try {
+    await systemPreferences.askForMediaAccess("microphone");
+  } catch (e) {
+    console.warn("[electron] microphone access request:", e?.message ?? e);
+  }
+  try {
+    await systemPreferences.askForMediaAccess("camera");
+  } catch (e) {
+    console.warn("[electron] camera access request:", e?.message ?? e);
+  }
+}
+
+app.whenReady().then(async () => {
+  setupMediaPermissions();
+  await ensureMacOSMediaAccess();
+
   Menu.setApplicationMenu(buildMenu());
 
   if (process.platform === "darwin") {

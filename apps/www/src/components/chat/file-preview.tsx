@@ -15,7 +15,7 @@ export function FilePreview({ file, previewUrl, onRemove, disabled }: FilePrevie
   const isBlackWhite = colorTheme.name === "Black & White";
   
   return (
-    <div className="absolute bottom-full left-2 right-2 mb-2 bg-white dark:bg-black rounded-xl shadow-xl border border-black/20 dark:border-white/20 overflow-hidden animate-in slide-in-from-bottom-2">
+    <div className="absolute bottom-full left-2 right-2 mb-2 bg-white dark:bg-black rounded-xl shadow-xl border border-black/10 dark:border-white/10 overflow-hidden animate-in slide-in-from-bottom-2">
       {previewUrl ? (
         // Image preview
         <div className="relative">

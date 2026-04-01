@@ -263,9 +263,9 @@ export function ThreadList({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white/10 dark:bg-muted/20">
+    <div className="flex flex-col h-full bg-muted/10 dark:bg-muted/20">
       {/* Loom header */}
-      <div className="px-3 pt-4 pb-2 border-b border-black/5 dark:border-white/5 shrink-0">
+      <div className="px-3 pt-4 pb-2 border-b border-black/10 dark:border-white/10 shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
@@ -371,7 +371,7 @@ export function ThreadList({
       ) : (
         <div className="flex-1 overflow-y-auto">
           {/* Settings header */}
-          <div className="flex items-center gap-2 px-3 py-3 border-b border-black/5 dark:border-white/5">
+          <div className="flex items-center gap-2 px-3 py-3 border-b border-black/10 dark:border-white/10">
             <button
               onClick={closeSettings}
               className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-7 w-7 shrink-0')}
@@ -395,7 +395,7 @@ export function ThreadList({
                 onClick={() => photoInputRef.current?.click()}
                 className="relative group"
               >
-                <div className="w-20 h-20 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/15 dark:border-white/15 flex items-center justify-center overflow-hidden transition-colors group-hover:border-black/30 dark:group-hover:border-white/30">
+                <div className="w-20 h-20 rounded-2xl bg-black/5 dark:bg-white/5 border border-dashed border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden transition-colors group-hover:border-black/20 dark:group-hover:border-white/20">
                   {selectedPhotoPreview && selectedPhotoPreview !== '__remove__' ? (
                     <img src={selectedPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
                   ) : loom.icon_url && selectedPhotoPreview !== '__remove__' ? (
@@ -439,7 +439,7 @@ export function ThreadList({
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 placeholder="Give your Loom a name"
-                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/30 dark:focus:border-white/30 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25"
+                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/20 dark:focus:border-white/20 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25"
               />
             </div>
 
@@ -453,7 +453,7 @@ export function ThreadList({
                 onChange={(e) => setEditDescription(e.target.value)}
                 rows={3}
                 placeholder="What's this Loom about?"
-                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/30 dark:focus:border-white/30 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25 resize-none"
+                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/20 dark:focus:border-white/20 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25 resize-none"
               />
             </div>
 

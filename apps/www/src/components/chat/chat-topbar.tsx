@@ -57,7 +57,7 @@ export default function ChatTopbar({ conversation, onShowSearch }: ChatTopbarPro
             />
           </Avatar>
           {isOnline && (
-            <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-background rounded-full ${
+            <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border border-background rounded-full ${
               isBlackWhite ? "bg-foreground" : "bg-green-500"
             }`} />
           )}

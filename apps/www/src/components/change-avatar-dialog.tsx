@@ -215,8 +215,8 @@ export function ChangeAvatarDialog({ open, onOpenChange, onAvatarChanged }: Chan
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-white/10">
-      <div className="bg-white dark:bg-black border border-black dark:border-white rounded-lg shadow-lg w-full max-w-md flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-black dark:border-white">
+      <div className="bg-white dark:bg-black border border-black/10 dark:border-white/10 rounded-lg shadow-lg w-full max-w-md flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
           <h2 className="text-xl font-semibold text-black dark:text-white">Change Avatar</h2>
           <Button
             variant="ghost"
@@ -241,7 +241,7 @@ export function ChangeAvatarDialog({ open, onOpenChange, onAvatarChanged }: Chan
                   Drag to reposition, resize the corners
                 </p>
               </div>
-              <div className="max-h-96 overflow-auto border border-black dark:border-white rounded-lg">
+              <div className="max-h-96 overflow-auto border border-black/10 dark:border-white/10 rounded-lg">
                 <ReactCrop
                   crop={crop}
                   onChange={(c) => setCrop(c)}
@@ -279,8 +279,8 @@ export function ChangeAvatarDialog({ open, onOpenChange, onAvatarChanged }: Chan
           {error && (
             <div className={`w-full p-3 border rounded-md ${
               isBlackWhite 
-                ? "bg-foreground/10 border-foreground/20" 
-                : "bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700"
+                ? "bg-foreground/10 border-black/10 dark:border-white/10" 
+                : "bg-red-100 dark:bg-red-900/30 border-red-300/80 dark:border-red-700/80"
             }`}>
               <p className={`text-sm ${
                 isBlackWhite 

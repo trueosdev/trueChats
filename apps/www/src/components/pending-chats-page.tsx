@@ -154,7 +154,7 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
     return (
       <div
         key={request.id}
-        className={`flex items-center gap-3 p-3 rounded-lg border border-[1px] border-black dark:border-white hover:bg-black/15 dark:hover:bg-white/5 ${
+        className={`flex items-center gap-3 p-3 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/15 dark:hover:bg-white/5 ${
           request.status === "accepted" ? "cursor-pointer" : ""
         }`}
         onClick={() => {

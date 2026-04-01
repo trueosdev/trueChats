@@ -71,7 +71,7 @@ export function ThemeEditor() {
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2">
                   <div
-                    className="w-4 h-4 rounded-full border"
+                    className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10"
                     style={{
                       backgroundColor: `hsl(${
                         resolvedTheme === "dark" ? theme.dark.primary : theme.light.primary

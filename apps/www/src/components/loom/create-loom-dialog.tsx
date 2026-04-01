@@ -89,7 +89,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-white/10">
-      <div className="bg-white dark:bg-[#111] border border-black/15 dark:border-white/15 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-[#111] border border-black/10 dark:border-white/10 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-black/10 dark:border-white/10">
           {step === 'icon' && (
@@ -119,7 +119,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => iconType === 'icon' && setStep('icon')}
-                  className="w-16 h-16 rounded-2xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/20 dark:border-white/20 flex items-center justify-center hover:border-black/40 dark:hover:border-white/40 transition-colors shrink-0"
+                  className="w-16 h-16 rounded-2xl bg-black/5 dark:bg-white/5 border border-dashed border-black/10 dark:border-white/10 flex items-center justify-center hover:border-black/20 dark:hover:border-white/20 transition-colors shrink-0"
                 >
                   {iconType === 'photo' && iconUrl.trim() ? (
                     <img
@@ -189,7 +189,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
                     placeholder="https://..."
                     value={iconUrl}
                     onChange={(e) => setIconUrl(e.target.value)}
-                    className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/30 dark:focus:border-white/30 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
+                    className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/20 dark:focus:border-white/20 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
                   />
                 </div>
               )}
@@ -203,7 +203,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
-                  className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/30 dark:focus:border-white/30 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 resize-none"
+                  className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/20 dark:focus:border-white/20 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 resize-none"
                 />
               </div>
 
@@ -277,7 +277,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
                       onClick={() => { setIconName(name); setStep('name') }}
                       className={`p-3 rounded-lg flex items-center justify-center transition-colors ${
                         selected
-                          ? 'bg-black/10 dark:bg-white/10 ring-2 ring-black dark:ring-white'
+                          ? 'bg-black/10 dark:bg-white/10 ring-1 ring-black/20 dark:ring-white/20'
                           : 'hover:bg-black/5 dark:hover:bg-white/5'
                       }`}
                       title={name}

@@ -165,7 +165,7 @@ export function NewChatDialog({ open, onOpenChange, onConversationCreated }: New
   if (!open) return null
 
   return (
-    <div className="flex flex-col rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-[#1a1a1a] text-black dark:text-white shadow-xl w-80 max-h-[28rem] overflow-hidden">
+    <div className="flex flex-col rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-[#1a1a1a] text-black dark:text-white shadow-xl w-80 max-h-[28rem] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-black/10 dark:border-white/10">
         <Search className="h-4 w-4 shrink-0 text-black/40 dark:text-white/40" />
         <input

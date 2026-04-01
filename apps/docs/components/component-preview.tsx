@@ -27,13 +27,13 @@ export default function ComponentPreview({
         </TabsList>
         <TabsContent
           value="preview"
-          className="relative rounded-md border dark:border-neutral-600 p-4"
+          className="relative rounded-md border border-black/10 dark:border-white/10 p-4"
         >
           {component}
         </TabsContent>
         <TabsContent
           value="code"
-          className="relative max-h-[400px] overflow-y-auto w-full rounded-md border dark:border-neutral-600 bg-foreground text-background p-4"
+          className="relative max-h-[400px] overflow-y-auto w-full rounded-md border border-black/10 dark:border-white/10 bg-foreground text-background p-4"
         >
           <div className="relative w-full rounded-md  text-sm ">
             <CopyButton

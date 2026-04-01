@@ -6,27 +6,12 @@ import {
   RoomAudioRenderer,
   useLocalParticipant,
 } from "@livekit/components-react";
-import { PhoneOff, Maximize2, Mic, MicOff } from "lucide-react";
+import { PhoneOff, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import { useCall } from "./call-provider";
-
-function WaveformBars() {
-  return (
-    <div className="flex items-end gap-[2px] h-3">
-      {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className="w-[2px] rounded-full bg-green-400"
-          style={{
-            animation: `waveform 1.2s ease-in-out ${i * 0.15}s infinite`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+import { RemoteMicWaveform } from "./remote-mic-waveform";
 
 function PillTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -76,7 +61,12 @@ function PillControls() {
               {remoteUser?.name}
             </span>
             <div className="flex items-center gap-1.5">
-              <WaveformBars />
+              <RemoteMicWaveform
+                barCount={4}
+                className="h-3"
+                gapPx={2}
+                barClassName="w-[2px]"
+              />
               <PillTimer />
             </div>
           </div>

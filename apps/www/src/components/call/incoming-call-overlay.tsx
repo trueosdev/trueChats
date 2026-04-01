@@ -21,7 +21,7 @@ export function IncomingCallOverlay() {
               alt={remoteUser.name}
             />
           </Avatar>
-          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-background" />
         </div>
 
         <div className="flex-1 min-w-0">
