@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, MessageCircle } from 'lucide-react'
+import { MessageCircle , Volleyball} from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RAIL_WIDTH } from '@/lib/layout-constants'
@@ -37,7 +37,7 @@ export function LoomSidebar({
 
   return (
     <div
-      className="flex flex-col items-center bg-transparent py-3 gap-2 h-full shrink-0 overflow-y-auto electron-no-drag border-r border-black/10 dark:border-white/10"
+      className="flex flex-col items-center bg-transparent py-3 gap-2 h-full shrink-0 overflow-y-auto electron-no-drag border-none"
       style={{ width: RAIL_WIDTH }}
     >
       {/* DMs button */}
@@ -131,11 +131,11 @@ export function LoomSidebar({
             <button
               onClick={onCreateLoom}
               className={cn(
-                "w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 flex items-center justify-center hover:text-black/60 dark:hover:text-white/60 hover:rounded-xl transition-all duration-200",
+                "w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 text-black dark:text-white flex items-center justify-center hover:text-black/80 dark:hover:text-white/80 hover:rounded-xl transition-all duration-200",
                 loomHoverEffect
               )}
             >
-              <Plus size={22} />
+              <Volleyball size={22} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Create a Loom</TooltipContent>

@@ -294,7 +294,7 @@ export function ChatList({
                                   href={message.attachment_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="block group/img relative overflow-hidden rounded-xl max-w-sm"
+                                  className="block group/img relative overflow-hidden rounded-md max-w-sm"
                                 >
                                   <div className="relative bg-gradient-to-br from-black/3 to-black/5 dark:from-white/5 dark:to-white/10 p-1">
                                     <img
@@ -303,18 +303,11 @@ export function ChatList({
                                         message.attachment_name ||
                                         "Image attachment"
                                       }
-                                      className="rounded-lg w-full h-auto object-contain shadow-sm group-hover/img:scale-105 transition-transform duration-200"
+                                      className="rounded-md w-full h-auto object-contain shadow-sm group-hover/img:scale-[1.01] transition-transform duration-100 ease-out"
                                       style={{ maxHeight: "400px" }}
                                     />
-                                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors rounded-lg" />
+                                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors rounded-lg pointer-events-none" />
                                   </div>
-                                  {message.attachment_name && (
-                                    <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded opacity-0 group-hover/img:opacity-100 transition-opacity">
-                                      <span className="truncate block">
-                                        {message.attachment_name}
-                                      </span>
-                                    </div>
-                                  )}
                                 </a>
                               ) : (
                                 <a
