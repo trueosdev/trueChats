@@ -5,7 +5,7 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
 } from "@livekit/components-react";
-import { PhoneOff, Maximize2, Hash } from "lucide-react";
+import { PhoneOff, Maximize2, LineSquiggle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useThreadCall } from "./thread-call-provider";
 import useChatStore from "@/hooks/useChatStore";
@@ -52,7 +52,7 @@ function PillControls() {
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
           <div className="h-7 w-7 rounded-full bg-emerald-600/20 flex items-center justify-center shrink-0">
-            <Hash className="h-3.5 w-3.5 text-emerald-400" />
+            <LineSquiggle className="h-3.5 w-3.5 text-emerald-400" />
           </div>
           <div className="flex flex-col gap-0.5 min-w-0 mr-1">
             <span className="text-xs font-medium text-white truncate max-w-[100px]">

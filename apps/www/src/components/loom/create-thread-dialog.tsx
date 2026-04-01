@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { X, Hash, Lock, Video } from 'lucide-react'
+import { X, Lock, Video, LineSquiggle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { createThread } from '@/lib/services/threads'
 import { useAuth } from '@/hooks/useAuth'
@@ -84,7 +84,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
               {category === 'voice' ? (
                 <Video size={16} className="text-black/40 dark:text-white/40 shrink-0" />
               ) : (
-                <Hash size={16} className="text-black/40 dark:text-white/40 shrink-0" />
+                <LineSquiggle size={16} className="text-black/40 dark:text-white/40 shrink-0" />
               )}
               <input
                 type="text"
@@ -123,7 +123,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
                     : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
                 }`}
               >
-                <Hash size={14} />
+                <LineSquiggle size={14} />
                 Text
               </button>
               <button
@@ -153,7 +153,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
                     : 'bg-black/5 dark:bg-white/5 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
                 }`}
               >
-                <Hash size={14} />
+                  <LineSquiggle size={14} />
                 Open
               </button>
               <button

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Hash, Lock, Video, PhoneOff, Phone, PhoneCall } from 'lucide-react'
+import { Lock, Video, PhoneOff, Phone, PhoneCall, LineSquiggle } from 'lucide-react'
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -107,7 +107,7 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
             {thread.type === 'private' ? (
               <Lock size={16} className="text-black/60 dark:text-white/60" />
             ) : (
-              <Hash size={16} className="text-black/60 dark:text-white/60" />
+              <LineSquiggle size={16} className="text-black/60 dark:text-white/60" />
             )}
           </div>
           <div className="flex flex-col text-left flex-1 min-w-0">
@@ -329,7 +329,7 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
 
   return (
     <div className="flex flex-col w-full h-full">
-      <div className="px-4 py-3 border-b border-black/10 dark:border-white/10 flex items-center gap-3 shrink-0">
+      <div className="px-4 py-3 flex items-center gap-3 shrink-0">
         <div className="h-8 w-8 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0">
           <Video size={16} className="text-black/60 dark:text-white/60" />
         </div>

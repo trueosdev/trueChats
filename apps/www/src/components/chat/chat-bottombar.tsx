@@ -10,6 +10,7 @@ import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { EmojiPicker } from "../emoji-picker";
+import { KlipyGifPicker } from "../klipy-gif-picker";
 import { ChatInput } from "@shadcn-chat/ui";
 import { sendMessage } from "@/lib/services/messages";
 import { useAuth } from "@/hooks/useAuth";
@@ -217,6 +218,49 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
     }
   };
 
+  const handleGifSend = async (gifAttachment: AttachmentData) => {
+    if (!user || !conversationId) return;
+
+    setSelectedLoading(true);
+    try {
+      const send = customSendMessage || sendMessage;
+      const sentMessage = await send(
+        conversationId,
+        " ",
+        user.id,
+        gifAttachment,
+        replyingTo?.id as string | undefined,
+      );
+
+      if (sentMessage) {
+        addMessage(sentMessage);
+        setReplyingTo(null);
+
+        if (typingChannel) {
+          broadcastTyping(
+            typingChannel,
+            user.id,
+            conversationId,
+            false,
+            user.user_metadata?.username || user.user_metadata?.fullname,
+          );
+        }
+
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+      }
+    } catch (error) {
+      console.error("Error sending GIF:", error);
+    } finally {
+      setSelectedLoading(false);
+    }
+
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -310,9 +354,13 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
             onChange={handleInputChange}
             onPaste={handlePaste}
             placeholder="Type a message..."
-            className="rounded-full border-none dark:bg-white/5 bg-black/5 pr-[5.25rem]"
+            className="rounded-full border-none dark:bg-white/5 bg-black/5 pr-[7.5rem]"
           />
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+            <KlipyGifPicker
+              onGifSelect={handleGifSend}
+              disabled={selectedLoading || uploading}
+            />
             <EmojiPicker
               onChange={(value) => {
                 setMessage(message + value);

@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import type { LoomVisibility } from '@/app/data'
 
 const LOOM_ICONS = [
-  'Users', 'UsersRound', 'MessageCircle', 'MessagesSquare', 'Hash',
+  'Users', 'UsersRound', 'MessageCircle', 'MessagesSquare', 'LineSquiggle',
   'Heart', 'Star', 'Crown', 'Trophy', 'Award',
   'Coffee', 'Pizza', 'Gamepad2', 'Music', 'Headphones',
   'Briefcase', 'GraduationCap', 'Building', 'School',
