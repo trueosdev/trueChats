@@ -324,6 +324,34 @@ export async function markThreadMessagesAsRead(
   return true
 }
 
+export async function getUnreadLoomCounts(
+  userId: string,
+  loomIds: string[]
+): Promise<Record<string, number>> {
+  if (loomIds.length === 0) return {}
+
+  const { data, error } = await supabase
+    .from('thread_messages')
+    .select('threads!inner(loom_id)')
+    .in('threads.loom_id', loomIds)
+    .is('read_at', null)
+    .neq('sender_id', userId)
+
+  if (error) {
+    console.error('Error fetching loom unread counts:', error)
+    return {}
+  }
+
+  const counts: Record<string, number> = {}
+  ;(data || []).forEach((row: any) => {
+    const loomId = row?.threads?.loom_id
+    if (!loomId) return
+    counts[loomId] = (counts[loomId] || 0) + 1
+  })
+
+  return counts
+}
+
 // --- Realtime ---
 
 export function subscribeToThreadMessages(

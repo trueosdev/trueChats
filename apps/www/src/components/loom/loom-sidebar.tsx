@@ -1,6 +1,6 @@
 "use client"
 
-import { MessageCircle , Volleyball} from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RAIL_WIDTH } from '@/lib/layout-constants'
@@ -15,6 +15,7 @@ import type { Loom } from '@/app/data'
 
 interface LoomSidebarProps {
   looms: Loom[]
+  loomUnreadCounts: Record<string, number>
   selectedLoomId: string | null
   viewMode: 'dms' | 'looms'
   onLoomSelect: (loomId: string) => void
@@ -25,6 +26,7 @@ interface LoomSidebarProps {
 
 export function LoomSidebar({
   looms,
+  loomUnreadCounts,
   selectedLoomId,
   viewMode,
   onLoomSelect,
@@ -54,7 +56,7 @@ export function LoomSidebar({
                   : "bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60"
               )}
             >
-              <MessageCircle size={22} />
+              <MessageCircle strokeWidth={1.5} size={22} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Direct Messages</TooltipContent>
@@ -77,6 +79,7 @@ export function LoomSidebar({
           const LoomIcon = Icon || FallbackIcon
           const isSelected = viewMode === 'looms' && selectedLoomId === loom.id
           const hasImageIcon = Boolean(loom.icon_url)
+          const hasUnread = (loomUnreadCounts[loom.id] || 0) > 0
 
           return (
             <TooltipProvider key={loom.id}>
@@ -110,6 +113,9 @@ export function LoomSidebar({
                         <LoomIcon size={22} />
                       )}
                     </button>
+                    {hasUnread && (
+                      <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
+                    )}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">
@@ -131,11 +137,11 @@ export function LoomSidebar({
             <button
               onClick={onCreateLoom}
               className={cn(
-                "w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 text-black dark:text-white flex items-center justify-center hover:text-black/80 dark:hover:text-white/80 hover:rounded-xl transition-all duration-200",
+                "group w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 text-black dark:text-white flex items-center justify-center hover:text-black/80 dark:hover:text-white/80 hover:rounded-xl transition-all duration-200",
                 loomHoverEffect
               )}
             >
-              <Volleyball size={22} />
+              <img src="/loom.svg" alt="Create Loom" className="h-[22px] w-[22px] transition-transform duration-200 group-hover:rotate-45 dark:invert" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Create a Loom</TooltipContent>

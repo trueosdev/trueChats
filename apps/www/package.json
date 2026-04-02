@@ -42,7 +42,8 @@
       ],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "trueChats uses the microphone for voice and video calls.",
-        "NSCameraUsageDescription": "trueChats uses the camera for video calls."
+        "NSCameraUsageDescription": "trueChats uses the camera for video calls.",
+        "NSScreenCaptureUsageDescription": "trueChats needs screen recording permission to share your screen on calls."
       }
     },
     "win": {

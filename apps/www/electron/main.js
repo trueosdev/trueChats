@@ -5,6 +5,7 @@ const {
   shell,
   session,
   systemPreferences,
+  desktopCapturer,
 } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
@@ -126,9 +127,21 @@ function createWindow() {
 
   const startUrl = app.isPackaged ? PROD_URL : "http://localhost:3000";
   win.loadURL(startUrl);
+
+  // macOS TCC prompts are much more reliable once a visible window exists (especially in dev).
+  win.once("ready-to-show", () => {
+    void ensureMacOSMediaAccess();
+  });
 }
 
 app.setName(APP_NAME);
+
+/** Permissions we allow for our own UI (LiveKit / getUserMedia / getDisplayMedia). */
+const GRANTED_PERMISSIONS = new Set([
+  "media",
+  "display-capture",
+  "speaker-selection",
+]);
 
 /**
  * Grant Chromium media permissions so getUserMedia / LiveKit can run.
@@ -137,20 +150,71 @@ app.setName(APP_NAME);
 function setupMediaPermissions() {
   const ses = session.defaultSession;
 
-  ses.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if (permission === "media" || permission === "display-capture") {
-      callback(true);
-      return;
-    }
-    callback(false);
-  });
+  ses.setPermissionRequestHandler(
+    (_webContents, permission, callback, details) => {
+      if (GRANTED_PERMISSIONS.has(permission)) {
+        callback(true);
+        return;
+      }
+      // Optional: log unknown permission once while debugging new Chromium features
+      if (permission && process.env.ELECTRON_DEBUG_PERMISSIONS) {
+        console.log("[electron] permission request:", permission, details);
+      }
+      callback(false);
+    },
+  );
 
+  // Note: Electron's typings omit `display-capture` here, but Chromium still performs checks.
   ses.setPermissionCheckHandler((_webContents, permission) => {
-    if (permission === "media" || permission === "display-capture") {
+    if (GRANTED_PERMISSIONS.has(permission)) {
       return true;
     }
     return undefined;
   });
+}
+
+/**
+ * Required for navigator.mediaDevices.getDisplayMedia (screen share) in Electron.
+ * - macOS: prefer native system picker when available (macOS 15+).
+ * - Other platforms: grant the primary display / first source so sharing works (no built-in picker).
+ */
+function setupDisplayMediaHandler() {
+  const ses = session.defaultSession;
+
+  ses.setDisplayMediaRequestHandler(
+    async (request, callback) => {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ["screen", "window"],
+          fetchWindowIcons: true,
+          thumbnailSize: { width: 200, height: 200 },
+        });
+
+        if (sources.length === 0) {
+          callback({});
+          return;
+        }
+
+        const primary =
+          sources.find((s) => s.id.startsWith("screen:")) ?? sources[0];
+
+        const streams = {
+          video: { id: primary.id, name: primary.name },
+        };
+
+        if (request.audioRequested && process.platform === "win32") {
+          streams.audio = "loopback";
+        }
+
+        callback(streams);
+      } catch (e) {
+        console.warn("[electron] display media handler:", e?.message ?? e);
+        callback({});
+      }
+    },
+    // Experimental: native screen/window picker on supported macOS versions; handler may not run.
+    process.platform === "darwin" ? { useSystemPicker: true } : {},
+  );
 }
 
 /**
@@ -160,13 +224,25 @@ function setupMediaPermissions() {
 async function ensureMacOSMediaAccess() {
   if (process.platform !== "darwin") return;
 
+  const micStatus = systemPreferences.getMediaAccessStatus?.("microphone");
+  const camStatus = systemPreferences.getMediaAccessStatus?.("camera");
+  if (process.env.ELECTRON_DEBUG_PERMISSIONS) {
+    console.log("[electron] media status before ask:", { micStatus, camStatus });
+  }
+
   try {
-    await systemPreferences.askForMediaAccess("microphone");
+    const mic = await systemPreferences.askForMediaAccess("microphone");
+    if (process.env.ELECTRON_DEBUG_PERMISSIONS) {
+      console.log("[electron] askForMediaAccess(microphone) =>", mic);
+    }
   } catch (e) {
     console.warn("[electron] microphone access request:", e?.message ?? e);
   }
   try {
-    await systemPreferences.askForMediaAccess("camera");
+    const cam = await systemPreferences.askForMediaAccess("camera");
+    if (process.env.ELECTRON_DEBUG_PERMISSIONS) {
+      console.log("[electron] askForMediaAccess(camera) =>", cam);
+    }
   } catch (e) {
     console.warn("[electron] camera access request:", e?.message ?? e);
   }
@@ -174,7 +250,7 @@ async function ensureMacOSMediaAccess() {
 
 app.whenReady().then(async () => {
   setupMediaPermissions();
-  await ensureMacOSMediaAccess();
+  setupDisplayMediaHandler();
 
   Menu.setApplicationMenu(buildMenu());
 

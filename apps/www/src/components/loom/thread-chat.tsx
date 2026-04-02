@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { Lock, Video, PhoneOff, Phone, PhoneCall, LineSquiggle } from 'lucide-react'
 import {
   LiveKitRoom,
@@ -8,7 +8,15 @@ import {
   GridLayout,
   ParticipantTile,
   useTracks,
+  LayoutContextProvider,
+  useCreateLayoutContext,
+  usePinnedTracks,
+  TrackLoop,
+  FocusLayout,
+  FocusLayoutContainer,
 } from '@livekit/components-react'
+import { isEqualTrackRef, isTrackReference } from '@livekit/components-core'
+import type { TrackReferenceOrPlaceholder } from '@livekit/components-core'
 import '@livekit/components-styles'
 import '@/app/livekit-overrides.css'
 import { Track } from 'livekit-client'
@@ -31,6 +39,30 @@ interface ThreadChatProps {
   thread: Thread
   loom: Loom
   isMobile: boolean
+}
+
+function ThreadPanelHeader({
+  thread,
+  leadingIcon,
+}: {
+  thread: Thread
+  leadingIcon: ReactNode
+}) {
+  return (
+    <ExpandableChatHeader className="shrink-0 border-none px-2 py-3 dark:border-white/10 sm:px-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5">
+          {leadingIcon}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col text-left">
+          <span className="truncate text-sm font-medium">{thread.name}</span>
+          {thread.description && (
+            <span className="truncate text-xs text-muted-foreground">{thread.description}</span>
+          )}
+        </div>
+      </div>
+    </ExpandableChatHeader>
+  )
 }
 
 export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
@@ -100,24 +132,17 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
   }
 
   return (
-    <div className="flex flex-col justify-between w-full h-full">
-      <ExpandableChatHeader className="px-2 py-3 sm:px-4">
-        <div className="flex items-center gap-3 flex-1">
-          <div className="h-8 w-8 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0">
-            {thread.type === 'private' ? (
-              <Lock size={16} className="text-black/60 dark:text-white/60" />
-            ) : (
-              <LineSquiggle size={16} className="text-black/60 dark:text-white/60" />
-            )}
-          </div>
-          <div className="flex flex-col text-left flex-1 min-w-0">
-            <span className="font-medium text-sm truncate">{thread.name}</span>
-            {thread.description && (
-              <span className="text-xs text-muted-foreground truncate">{thread.description}</span>
-            )}
-          </div>
-        </div>
-      </ExpandableChatHeader>
+    <div className="flex h-full w-full flex-col justify-between">
+      <ThreadPanelHeader
+        thread={thread}
+        leadingIcon={
+          thread.type === 'private' ? (
+            <Lock size={16} className="text-black/60 dark:text-white/60" />
+          ) : (
+            <LineSquiggle size={16} className="text-black/60 dark:text-white/60" />
+          )
+        }
+      />
 
       <ChatList
         messages={threadMessages}
@@ -133,6 +158,57 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
         customSendMessage={customSend}
       />
     </div>
+  )
+}
+
+/** Same layout/orientation as LiveKit's CarouselLayout, but TrackLoop only — avoids useVisualStableUpdate/updatePages throwing when the focused track leaves the strip. */
+function ThreadCallCarouselStrip({ tracks }: { tracks: TrackReferenceOrPlaceholder[] }) {
+  const asideEl = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  useLayoutEffect(() => {
+    const el = asideEl.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect
+      if (cr) setSize({ width: cr.width, height: cr.height })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const { width, height } = size
+  const carouselOrientation = height >= width ? 'vertical' : 'horizontal'
+
+  const MIN_HEIGHT = 130
+  const MIN_WIDTH = 140
+  /** Portrait 3:4 tiles (width:height) — matches CSS on `.lk-carousel > *` */
+  const ASPECT_RATIO = 3 / 4
+  const tileSpan =
+    carouselOrientation === 'vertical'
+      ? Math.max(width * (4 / 3), MIN_HEIGHT)
+      : Math.max(height * ASPECT_RATIO, MIN_WIDTH)
+
+  const tilesThatFit =
+    carouselOrientation === 'vertical'
+      ? Math.max(height / tileSpan, 1)
+      : Math.max(width / tileSpan, 1)
+
+  const maxVisibleTiles = Math.max(1, Math.round(tilesThatFit))
+
+  useLayoutEffect(() => {
+    const el = asideEl.current
+    if (!el) return
+    el.dataset.lkOrientation = carouselOrientation
+    el.style.setProperty('--lk-max-visible-tiles', String(maxVisibleTiles))
+  }, [maxVisibleTiles, carouselOrientation])
+
+  return (
+    <aside key={carouselOrientation} ref={asideEl} className="lk-carousel min-h-0">
+      <TrackLoop tracks={tracks}>
+        <ParticipantTile />
+      </TrackLoop>
+    </aside>
   )
 }
 
@@ -154,6 +230,10 @@ function CallControls({ onLeave }: { onLeave: () => void }) {
 }
 
 function CallGrid() {
+  const layoutContext = useCreateLayoutContext()
+  const lastAutoFocusedScreenShareTrack = useRef<TrackReferenceOrPlaceholder | null>(null)
+  const tracksRef = useRef<TrackReferenceOrPlaceholder[]>([])
+
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -162,12 +242,80 @@ function CallGrid() {
     { onlySubscribed: false },
   )
 
+  tracksRef.current = tracks
+
+  const screenShareKey = useMemo(
+    () =>
+      tracks
+        .filter(isTrackReference)
+        .filter((track) => track.publication.source === Track.Source.ScreenShare)
+        .map((ref) => `${ref.publication.trackSid}_${ref.publication.isSubscribed}`)
+        .join(','),
+    [tracks],
+  )
+
+  const focusTrack = usePinnedTracks(layoutContext)?.[0]
+  const carouselTracks = tracks.filter((track) => !isEqualTrackRef(track, focusTrack))
+
+  useEffect(() => {
+    const tracksNow = tracksRef.current
+    const screenShareTracksNow = tracksNow
+      .filter(isTrackReference)
+      .filter((track) => track.publication.source === Track.Source.ScreenShare)
+
+    if (
+      screenShareTracksNow.some((track) => track.publication.isSubscribed) &&
+      lastAutoFocusedScreenShareTrack.current === null
+    ) {
+      layoutContext.pin.dispatch?.({ msg: 'set_pin', trackReference: screenShareTracksNow[0] })
+      lastAutoFocusedScreenShareTrack.current = screenShareTracksNow[0]
+    } else if (
+      lastAutoFocusedScreenShareTrack.current &&
+      !screenShareTracksNow.some(
+        (track) =>
+          track.publication.trackSid ===
+          lastAutoFocusedScreenShareTrack.current?.publication?.trackSid,
+      )
+    ) {
+      layoutContext.pin.dispatch?.({ msg: 'clear_pin' })
+      lastAutoFocusedScreenShareTrack.current = null
+    }
+    if (focusTrack && !isTrackReference(focusTrack)) {
+      const updatedFocusTrack = tracksNow.find(
+        (tr) =>
+          tr.participant.identity === focusTrack.participant.identity &&
+          tr.source === focusTrack.source,
+      )
+      if (updatedFocusTrack !== focusTrack && isTrackReference(updatedFocusTrack)) {
+        layoutContext.pin.dispatch?.({ msg: 'set_pin', trackReference: updatedFocusTrack })
+      }
+    }
+  }, [
+    screenShareKey,
+    focusTrack?.publication?.trackSid,
+    layoutContext.pin.dispatch,
+    focusTrack,
+  ])
+
   return (
-    <div className="flex-1 relative">
-      <GridLayout tracks={tracks} style={{ height: '100%' }}>
-        <ParticipantTile />
-      </GridLayout>
-    </div>
+    <LayoutContextProvider value={layoutContext}>
+      <div className="flex-1 relative min-h-0 flex flex-col overflow-hidden">
+        {!focusTrack ? (
+          <div className="flex-1 min-h-0 w-full min-w-0 overflow-hidden">
+            <GridLayout tracks={tracks} style={{ height: '100%' }}>
+              <ParticipantTile />
+            </GridLayout>
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 w-full min-w-0 overflow-hidden flex flex-col">
+            <FocusLayoutContainer className="h-full min-h-0 max-h-full flex-1 overflow-hidden">
+              <ThreadCallCarouselStrip tracks={carouselTracks} />
+              {focusTrack ? <FocusLayout trackRef={focusTrack} className="min-h-0 min-w-0" /> : null}
+            </FocusLayoutContainer>
+          </div>
+        )}
+      </div>
+    </LayoutContextProvider>
   )
 }
 
@@ -328,21 +476,14 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
   }
 
   return (
-    <div className="flex flex-col w-full h-full">
-      <div className="px-4 py-3 flex items-center gap-3 shrink-0">
-        <div className="h-8 w-8 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0">
-          <Video size={16} className="text-black/60 dark:text-white/60" />
-        </div>
-        <div className="flex flex-col text-left flex-1 min-w-0">
-          <span className="font-medium text-sm truncate">{thread.name}</span>
-          {thread.description && (
-            <span className="text-xs text-muted-foreground truncate">{thread.description}</span>
-          )}
-        </div>
-      </div>
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <ThreadPanelHeader
+        thread={thread}
+        leadingIcon={<Video size={16} className="text-black/60 dark:text-white/60" />}
+      />
 
       {error && (
-        <div className="px-4 pt-3">
+        <div className="px-2 pt-3 sm:px-4">
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg">
             {error}
           </p>
@@ -350,7 +491,12 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
       )}
 
       {isConnectedToThisThread && threadCall.livekitToken ? (
-        <div className="flex-1 flex flex-col min-h-0" data-lk-theme="default">
+        <div
+          className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          data-lk-theme="default"
+          data-thread-voice-call=""
+          data-call-video-tiles="portrait-34"
+        >
           <LiveKitRoom
             serverUrl={threadCall.livekitUrl}
             token={threadCall.livekitToken}
@@ -358,6 +504,7 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
             audio={true}
             video={false}
             onDisconnected={threadCall.leaveThreadCall}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
           >
             <CallGrid />

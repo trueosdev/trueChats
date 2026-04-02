@@ -6,6 +6,7 @@ import { Button } from '../ui/button'
 import { createThread } from '@/lib/services/threads'
 import { useAuth } from '@/hooks/useAuth'
 import type { ThreadType, ThreadCategory } from '@/app/data'
+import { THREAD_DESCRIPTION_MAX_CHARS, THREAD_NAME_MAX_CHARS } from '@/lib/thread-field-limits'
 
 interface CreateThreadDialogProps {
   open: boolean
@@ -80,20 +81,26 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
             <label className="block text-xs font-medium text-black/60 dark:text-white/60 mb-1.5 uppercase tracking-wide">
               Thread Name
             </label>
-            <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg border border-black/10 dark:border-white/10 px-3">
-              {category === 'voice' ? (
-                <Video size={16} className="text-black/40 dark:text-white/40 shrink-0" />
-              ) : (
-                <LineSquiggle size={16} className="text-black/40 dark:text-white/40 shrink-0" />
-              )}
-              <input
-                type="text"
-                placeholder={category === 'voice' ? "voice-chat" : "general"}
-                value={name}
-                onChange={(e) => { setName(e.target.value); setError(null) }}
-                autoFocus
-                className="flex-1 bg-transparent py-2.5 text-sm outline-none text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
-              />
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-lg border border-black/10 dark:border-white/10 px-3">
+                {category === 'voice' ? (
+                  <Video size={16} className="text-black/40 dark:text-white/40 shrink-0" />
+                ) : (
+                  <LineSquiggle size={16} className="text-black/40 dark:text-white/40 shrink-0" />
+                )}
+                <input
+                  type="text"
+                  placeholder={category === 'voice' ? "voice-chat" : "general"}
+                  value={name}
+                  onChange={(e) => { setName(e.target.value.slice(0, THREAD_NAME_MAX_CHARS)); setError(null) }}
+                  maxLength={THREAD_NAME_MAX_CHARS}
+                  autoFocus
+                  className="flex-1 bg-transparent py-2.5 text-sm outline-none text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
+                />
+              </div>
+              <p className="text-right text-[11px] tabular-nums text-black/40 dark:text-white/40">
+                {name.length}/{THREAD_NAME_MAX_CHARS}
+              </p>
             </div>
           </div>
 
@@ -105,9 +112,13 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
               type="text"
               placeholder="What's this thread about?"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value.slice(0, THREAD_DESCRIPTION_MAX_CHARS))}
+              maxLength={THREAD_DESCRIPTION_MAX_CHARS}
               className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2.5 text-sm outline-none border border-black/10 dark:border-white/10 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
             />
+            <p className="mt-1 text-right text-[11px] tabular-nums text-black/40 dark:text-white/40">
+              {description.length}/{THREAD_DESCRIPTION_MAX_CHARS}
+            </p>
           </div>
 
           <div>

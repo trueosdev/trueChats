@@ -26,7 +26,9 @@ import { CreateLoomDialog } from "../loom/create-loom-dialog";
 import { CreateThreadDialog } from "../loom/create-thread-dialog";
 import { LoomMembersDialog } from "../loom/loom-members-dialog";
 import { getLooms, subscribeToLooms } from "@/lib/services/looms";
-import { getThreads, subscribeToThreads } from "@/lib/services/threads";
+import { getThreads, subscribeToThreads, getUnreadLoomCounts } from "@/lib/services/threads";
+import { Snail } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
 
 /** `react-resizable-panels` v4 treats numeric sizes as px; persisted layout uses % (0–100). */
 function panelDefaultSize(value: number): number | string {
@@ -61,6 +63,7 @@ export function ChatLayout({
   const selectedLoomId = useChatStore((state) => state.selectedLoomId);
   const threads = useChatStore((state) => state.threads);
   const selectedThreadId = useChatStore((state) => state.selectedThreadId);
+  const loomUnreadCounts = useChatStore((state) => state.loomUnreadCounts);
 
   const setConversations = useChatStore((state) => state.setConversations);
   const addConversation = useChatStore((state) => state.addConversation);
@@ -76,6 +79,7 @@ export function ChatLayout({
   const setThreads = useChatStore((state) => state.setThreads);
   const setSelectedThreadId = useChatStore((state) => state.setSelectedThreadId);
   const setLoomLoading = useChatStore((state) => state.setLoomLoading);
+  const setLoomUnreadCounts = useChatStore((state) => state.setLoomUnreadCounts);
 
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
 
@@ -191,6 +195,45 @@ export function ChatLayout({
       unsubscribers.forEach((unsub) => unsub());
     };
   }, [user, conversations, selectedConversationId, setUnreadCount]);
+
+  // Keep Loom unread counts in sync for rail dots
+  useEffect(() => {
+    if (!user || looms.length === 0) {
+      setLoomUnreadCounts({});
+      return;
+    }
+
+    let cancelled = false;
+    const loomIds = looms.map((l) => l.id);
+
+    const refreshLoomUnread = async () => {
+      const counts = await getUnreadLoomCounts(user.id, loomIds);
+      if (!cancelled) setLoomUnreadCounts(counts);
+    };
+
+    refreshLoomUnread();
+    const interval = window.setInterval(refreshLoomUnread, 10000);
+    const channel = supabase
+      .channel(`loom-unread-dot:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "thread_messages",
+        },
+        () => {
+          void refreshLoomUnread();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [user, looms, selectedThreadId, setLoomUnreadCounts]);
 
   if (authLoading) {
     return (
@@ -351,7 +394,8 @@ export function ChatLayout({
     }
 
     return (
-      <div className="flex items-center justify-center h-full text-black dark:text-white">
+      <div className="flex items-center justify-center h-full text-black dark:text-white gap-2">
+        <Snail strokeWidth={1.5} size={22} />
         It&apos;s lonely in here...
       </div>
     );
@@ -363,6 +407,7 @@ export function ChatLayout({
         {/* Loom rail */}
         <LoomSidebar
           looms={looms}
+          loomUnreadCounts={loomUnreadCounts}
           selectedLoomId={selectedLoomId}
           viewMode={viewMode}
           onLoomSelect={handleLoomSelect}
@@ -406,6 +451,7 @@ export function ChatLayout({
             id="main"
             defaultSize={panelDefaultSize(defaultLayout[1])}
             minSize="30%"
+            className="min-h-0"
           >
             {renderMainContent()}
           </ResizablePanel>

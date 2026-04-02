@@ -42,12 +42,14 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
   const { user } = useAuth()
   const [members, setMembers] = useState<LoomMember[]>([])
   const [loading, setLoading] = useState(false)
+  const [actioningMemberId, setActioningMemberId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showAddMember, setShowAddMember] = useState(false)
   const [availableUsers, setAvailableUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [adding, setAdding] = useState(false)
 
-  const currentMember = members.find(m => m.user_id === user?.id)
+  const currentMember = members.find(m => String(m.user_id) === String(user?.id))
   const canManage = currentMember?.role === 'owner' || currentMember?.role === 'admin'
 
   useEffect(() => {
@@ -70,25 +72,42 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
   const handleAddMember = async (userId: string) => {
     if (!user) return
     setAdding(true)
+    setActionError(null)
     const success = await addLoomMember(loomId, userId, String(user.id))
     if (success) {
       await loadMembers()
       setShowAddMember(false)
       setSearchQuery('')
+    } else {
+      setActionError('Could not add member. Please try again.')
     }
     setAdding(false)
   }
 
   const handleRemoveMember = async (userId: string) => {
     if (!user) return
+    setActionError(null)
+    setActioningMemberId(userId)
     const success = await removeLoomMember(loomId, userId, String(user.id))
-    if (success) await loadMembers()
+    if (success) {
+      await loadMembers()
+    } else {
+      setActionError('Could not remove member. Check your permissions and try again.')
+    }
+    setActioningMemberId(null)
   }
 
   const handleRoleChange = async (userId: string, newRole: LoomMemberRole) => {
     if (!user) return
+    setActionError(null)
+    setActioningMemberId(userId)
     const success = await updateLoomMemberRole(loomId, userId, newRole, String(user.id))
-    if (success) await loadMembers()
+    if (success) {
+      await loadMembers()
+    } else {
+      setActionError(`Could not update role to ${ROLE_LABELS[newRole]}. Please try again.`)
+    }
+    setActioningMemberId(null)
   }
 
   const filteredUsers = availableUsers.filter((u) => {
@@ -105,7 +124,7 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-white/10">
       <div className="bg-white dark:bg-[#111] border border-black/10 dark:border-white/10 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-black/10 dark:border-white/10">
+        <div className="flex items-center justify-between px-5 py-4 border-none">
           <div>
             <h2 className="text-lg font-semibold text-black dark:text-white">
               {showAddMember ? 'Add Member' : 'Members'}
@@ -127,7 +146,7 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
 
         {showAddMember ? (
           <>
-            <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
+            <div className="px-4 py-3 border-none">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black/40 dark:text-white/40" />
                 <input
@@ -136,7 +155,7 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
-                  className="w-full pl-9 pr-3 py-2 bg-black/5 dark:bg-white/5 rounded-lg text-sm outline-none border border-black/10 dark:border-white/10 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
+                  className="w-full pl-9 pr-3 py-2 bg-black/5 dark:bg-white/5 rounded-lg text-sm outline-none border-none text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30"
                 />
               </div>
             </div>
@@ -172,7 +191,7 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
         ) : (
           <>
             {canManage && (
-              <div className="px-3 py-2 border-b border-black/10 dark:border-white/10">
+              <div className="px-3 py-2 border-none">
                 <Button
                   onClick={() => { setShowAddMember(true); loadAvailableUsers() }}
                   variant="ghost"
@@ -186,6 +205,11 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
             )}
 
             <div className="flex-1 overflow-y-auto p-2">
+              {actionError && (
+                <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-300">
+                  {actionError}
+                </p>
+              )}
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="loader" style={{ width: '24px', height: '24px' }}></div>
@@ -193,7 +217,8 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
               ) : (
                 <div className="space-y-0.5">
                   {members.map((member) => {
-                    const isCurrentUser = member.user_id === user?.id
+                    const isCurrentUser = String(member.user_id) === String(user?.id)
+                    const isActingOnMember = actioningMemberId === member.user_id
                     const RoleIcon = ROLE_ICONS[member.role]
                     return (
                       <div key={member.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
@@ -219,30 +244,31 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
                         {canManage && !isCurrentUser && member.role !== 'owner' && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isActingOnMember}>
                                 <MoreVertical size={14} />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {member.role !== 'admin' && (
-                                <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, 'admin')}>
+                                <DropdownMenuItem disabled={isActingOnMember} onSelect={() => handleRoleChange(member.user_id, 'admin')}>
                                   <ShieldCheck size={14} className="mr-2" />
                                   Make Admin
                                 </DropdownMenuItem>
                               )}
                               {member.role !== 'moderator' && (
-                                <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, 'moderator')}>
+                                <DropdownMenuItem disabled={isActingOnMember} onSelect={() => handleRoleChange(member.user_id, 'moderator')}>
                                   <Shield size={14} className="mr-2" />
                                   Make Moderator
                                 </DropdownMenuItem>
                               )}
                               {member.role !== 'member' && (
-                                <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, 'member')}>
+                                <DropdownMenuItem disabled={isActingOnMember} onSelect={() => handleRoleChange(member.user_id, 'member')}>
                                   Demote to Member
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem
-                                onClick={() => handleRemoveMember(member.user_id)}
+                                disabled={isActingOnMember}
+                                onSelect={() => handleRemoveMember(member.user_id)}
                                 className="text-red-600 dark:text-red-400"
                               >
                                 <UserMinus size={14} className="mr-2" />

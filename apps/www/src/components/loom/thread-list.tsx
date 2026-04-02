@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Lock, Users, Pin, LineSquiggle, Settings, ChevronLeft, Camera, Check, Loader2, Video } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -19,9 +19,13 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { useAuth } from '@/hooks/useAuth'
+import useChatStore from '@/hooks/useChatStore'
 import { updateLoom, uploadLoomIcon } from '@/lib/services/looms'
+import { updateThread } from '@/lib/services/threads'
 import type { Loom, Thread } from '@/app/data'
+import { THREAD_NAME_MAX_CHARS } from '@/lib/thread-field-limits'
 
 interface ThreadListProps {
   loom: Loom
@@ -181,7 +185,7 @@ export function ThreadList({
               <DropdownMenuContent side="right" align="start" className="w-44">
                 <DropdownMenuItem onClick={onShowMembers}>
                   <Users size={14} className="mr-2" />
-                  <span>Add Members</span>
+                  <span>Members</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={openSettings}>
@@ -292,7 +296,7 @@ export function ThreadList({
           <DropdownMenuContent side="bottom" align="start" className="w-48">
             <DropdownMenuItem onClick={onShowMembers}>
               <Users size={14} className="mr-2" />
-              <span>Add Members</span>
+              <span>Members</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={openSettings}>
@@ -492,30 +496,154 @@ export function ThreadList({
   )
 }
 
-function ThreadItem({ thread, selected, onSelect }: {
+function ThreadItem({
+  thread,
+  selected,
+  onSelect,
+}: {
   thread: Thread
   selected: boolean
   onSelect: () => void
 }) {
+  const { user } = useAuth()
+  const updateThreadInStore = useChatStore((s) => s.updateThread)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [editName, setEditName] = useState(thread.name)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (settingsOpen) {
+      setEditName(thread.name)
+      setError(null)
+    }
+  }, [settingsOpen, thread.name])
+
+  const handleSaveName = async () => {
+    if (!user) return
+    const trimmed = editName.trim()
+    if (!trimmed) {
+      setError('Name cannot be empty.')
+      return
+    }
+    if (trimmed.length > THREAD_NAME_MAX_CHARS) {
+      setError(`Name must be ${THREAD_NAME_MAX_CHARS} characters or fewer.`)
+      return
+    }
+    if (trimmed === thread.name) {
+      setSettingsOpen(false)
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const ok = await updateThread(thread.id, { name: trimmed })
+    setSaving(false)
+    if (!ok) {
+      setError('Could not save. Try again.')
+      return
+    }
+    updateThreadInStore(thread.id, { name: trimmed })
+    setSettingsOpen(false)
+  }
+
   return (
-    <button
-      onClick={onSelect}
+    <div
       className={cn(
-        "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors text-sm",
+        'group/thread-row flex items-center gap-0.5 rounded-md pr-1 text-sm transition-colors',
         selected
-          ? "bg-black/10 dark:bg-white/10 text-black dark:text-white font-medium"
-          : "text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
+          ? 'bg-black/10 text-black dark:bg-white/10 dark:text-white'
+          : 'text-black/60 hover:bg-black/[0.06] dark:text-white/60 dark:hover:bg-white/[0.06]',
+        selected && 'font-medium',
       )}
     >
-      {thread.category === 'voice' ? (
-        <Video size={14} className="shrink-0" />
-      ) : thread.type === 'private' ? (
-        <Lock size={14} className="shrink-0" />
-      ) : (
-        <LineSquiggle size={14} className="shrink-0" />
-      )}
-      <span className="truncate">{thread.name}</span>
-      {thread.is_pinned && <Pin size={10} className="shrink-0 text-black/30 dark:text-white/30" />}
-    </button>
+      <button
+        type="button"
+        onClick={onSelect}
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none',
+          !selected && 'hover:text-black dark:hover:text-white',
+        )}
+      >
+        {thread.category === 'voice' ? (
+          <Video size={14} className="shrink-0" />
+        ) : thread.type === 'private' ? (
+          <Lock size={14} className="shrink-0" />
+        ) : (
+          <LineSquiggle size={14} className="shrink-0" />
+        )}
+        <span className="truncate">{thread.name}</span>
+        {thread.is_pinned && (
+          <Pin size={10} className="shrink-0 text-black/30 dark:text-white/30" />
+        )}
+      </button>
+
+      <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Thread settings"
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-black/35 dark:text-white/35 transition-opacity hover:text-black dark:hover:text-white',
+              'opacity-0 group-hover/thread-row:opacity-100 data-[state=open]:opacity-100',
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Settings size={16} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          align="start"
+          sideOffset={8}
+          className="w-auto border-0 bg-transparent p-0 shadow-none"
+        >
+          <div className="w-72 rounded-lg border border-black/10 bg-white text-black shadow-xl dark:border-white/10 dark:bg-[#1a1a1a] dark:text-white">
+            <div className="border-b border-black/10 px-3 py-2.5 dark:border-white/10">
+              <p className="text-xs font-medium text-black/50 dark:text-white/50">Thread name</p>
+            </div>
+            <div className="space-y-3 p-3">
+              <div className="space-y-1">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value.slice(0, THREAD_NAME_MAX_CHARS))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleSaveName()
+                  }}
+                  maxLength={THREAD_NAME_MAX_CHARS}
+                  className="w-full rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm outline-none placeholder:text-black/30 focus:border-black/20 dark:border-white/10 dark:bg-white/5 dark:placeholder:text-white/30 dark:focus:border-white/20"
+                  placeholder="channel-name"
+                  autoFocus
+                />
+                <p className="text-right text-[11px] tabular-nums text-black/40 dark:text-white/40">
+                  {editName.length}/{THREAD_NAME_MAX_CHARS}
+                </p>
+              </div>
+              {error && (
+                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleSaveName()}
+                disabled={saving}
+                className={cn(
+                  buttonVariants({ variant: 'default' }),
+                  'h-9 w-full gap-2',
+                )}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  'Save'
+                )}
+              </button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   )
 }

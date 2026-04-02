@@ -172,7 +172,7 @@ function VideoView() {
   const { hangUp, toggleMinimize } = useCall();
 
   return (
-    <div className="flex h-full flex-col bg-black">
+    <div className="flex h-full flex-col bg-black" data-call-video-tiles="portrait-34">
       <div className="flex-1 min-h-0">
         <GridLayout tracks={tracks}>
           <ParticipantTile />

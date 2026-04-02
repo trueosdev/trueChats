@@ -20,6 +20,7 @@ interface State {
   selectedThreadId: string | null;
   threadMessages: ThreadMessage[];
   loomLoading: boolean;
+  loomUnreadCounts: Record<string, number>;
 }
 
 interface Actions {
@@ -54,6 +55,8 @@ interface Actions {
   setThreadMessages: (messages: ThreadMessage[]) => void;
   addThreadMessage: (message: ThreadMessage) => void;
   setLoomLoading: (loading: boolean) => void;
+  setLoomUnreadCounts: (counts: Record<string, number>) => void;
+  setLoomUnreadCount: (loomId: string, count: number) => void;
 }
 
 const useChatStore = create<State & Actions>()((set) => ({
@@ -72,6 +75,7 @@ const useChatStore = create<State & Actions>()((set) => ({
   selectedThreadId: null,
   threadMessages: [],
   loomLoading: false,
+  loomUnreadCounts: {},
 
   setInput: (input) => set({ input }),
   handleInputChange: (
@@ -157,6 +161,10 @@ const useChatStore = create<State & Actions>()((set) => ({
     return { threadMessages: [...state.threadMessages, message] };
   }),
   setLoomLoading: (loading) => set({ loomLoading: loading }),
+  setLoomUnreadCounts: (counts) => set({ loomUnreadCounts: counts }),
+  setLoomUnreadCount: (loomId, count) => set((state) => ({
+    loomUnreadCounts: { ...state.loomUnreadCounts, [loomId]: count },
+  })),
 }));
 
 export default useChatStore;
