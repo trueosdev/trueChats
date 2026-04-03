@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { getConversations, subscribeToConversations } from "@/lib/services/conversations";
 import useChatStore from "@/hooks/useChatStore";
-import type { ConversationWithUser } from "@/app/data";
+import type { ConversationWithUser, Thread } from "@/app/data";
 import { PendingChatsPage } from "../pending-chats-page";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { getUnreadCounts, subscribeToMessages } from "@/lib/services/messages";
@@ -64,6 +64,7 @@ export function ChatLayout({
   const threads = useChatStore((state) => state.threads);
   const selectedThreadId = useChatStore((state) => state.selectedThreadId);
   const loomUnreadCounts = useChatStore((state) => state.loomUnreadCounts);
+  const loomThreadsLoading = useChatStore((state) => state.loomLoading);
 
   const setConversations = useChatStore((state) => state.setConversations);
   const addConversation = useChatStore((state) => state.addConversation);
@@ -79,6 +80,7 @@ export function ChatLayout({
   const setThreads = useChatStore((state) => state.setThreads);
   const setSelectedThreadId = useChatStore((state) => state.setSelectedThreadId);
   const setLoomLoading = useChatStore((state) => state.setLoomLoading);
+  const addThread = useChatStore((state) => state.addThread);
   const setLoomUnreadCounts = useChatStore((state) => state.setLoomUnreadCounts);
 
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
@@ -152,20 +154,26 @@ export function ChatLayout({
     return () => unsubscribe();
   }, [user]);
 
-  // Load threads when a loom is selected
+  // Load threads when a loom is selected (loomLoading = thread list only, not thread messages)
   useEffect(() => {
     if (!selectedLoomId) {
       setThreads([]);
+      setLoomLoading(false);
       return;
     }
 
+    const loomId = selectedLoomId;
+    setThreads([]);
     setLoomLoading(true);
-    getThreads(selectedLoomId).then((data) => {
+
+    let cancelled = false;
+    getThreads(loomId).then((data) => {
+      if (cancelled) return;
       setThreads(data);
       setLoomLoading(false);
     });
 
-    const unsubscribe = subscribeToThreads(selectedLoomId, (thread) => {
+    const unsubscribe = subscribeToThreads(loomId, (thread) => {
       const currentThreads = useChatStore.getState().threads;
       const exists = currentThreads.find(t => t.id === thread.id);
       if (exists) {
@@ -175,8 +183,11 @@ export function ChatLayout({
       }
     });
 
-    return () => unsubscribe();
-  }, [selectedLoomId]);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [selectedLoomId, setThreads, setLoomLoading]);
 
   // Subscribe to messages for unread count updates
   useEffect(() => {
@@ -267,12 +278,9 @@ export function ChatLayout({
     }
   };
 
-  const handleThreadCreated = async (threadId: string) => {
-    if (selectedLoomId) {
-      const updatedThreads = await getThreads(selectedLoomId);
-      setThreads(updatedThreads);
-      setSelectedThreadId(threadId);
-    }
+  const handleThreadCreated = (thread: Thread) => {
+    addThread(thread);
+    setSelectedThreadId(thread.id);
   };
 
   const handlePendingChatsClick = () => {
@@ -315,7 +323,7 @@ export function ChatLayout({
         onThreadSelect={(threadId) => setSelectedThreadId(threadId)}
         onCreateThread={() => setShowCreateThread(true)}
         onShowMembers={() => setShowLoomMembers(true)}
-        loading={useChatStore.getState().loomLoading}
+        loading={loomThreadsLoading}
         isCollapsed={collapsed}
       />
     ) : undefined;

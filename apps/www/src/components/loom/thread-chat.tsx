@@ -70,17 +70,16 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
   const threadMessages = useChatStore((state) => state.threadMessages)
   const setThreadMessages = useChatStore((state) => state.setThreadMessages)
   const addThreadMessage = useChatStore((state) => state.addThreadMessage)
-  const setLoading = useChatStore((state) => state.setLoomLoading)
   const [typingUsers, setTypingUsers] = useState<TypingState[]>([])
   const [typingChannel, setTypingChannel] = useState<RealtimeChannel | null>(null)
 
   useEffect(() => {
     if (!thread || !user) return
 
-    setLoading(true)
+    let cancelled = false
     getThreadMessages(thread.id).then((data) => {
+      if (cancelled) return
       setThreadMessages(data)
-      setLoading(false)
       markThreadMessagesAsRead(thread.id, user.id)
     })
 
@@ -99,6 +98,7 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
     setTypingChannel(channel)
 
     return () => {
+      cancelled = true
       unsubscribe()
       if (channel) channel.unsubscribe()
     }

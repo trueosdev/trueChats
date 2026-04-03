@@ -12,7 +12,7 @@
     "dev:electron": "wait-on tcp:3000 && electron electron/main.js",
     "icons:generate": "bash electron/icons/generate-icons.sh electron/icons/icon-source.png 8",
     "build": "next build",
-    "dist": "npm run build && electron-builder --publish never",
+    "dist": "npm run build && electron-builder --mac --win --publish never",
     "release": "npm run build && electron-builder --publish always",
     "start": "next start",
     "lint": "next lint",

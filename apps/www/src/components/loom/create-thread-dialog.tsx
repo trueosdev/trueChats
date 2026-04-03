@@ -5,14 +5,14 @@ import { X, Lock, Video, LineSquiggle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { createThread } from '@/lib/services/threads'
 import { useAuth } from '@/hooks/useAuth'
-import type { ThreadType, ThreadCategory } from '@/app/data'
+import type { Thread, ThreadType, ThreadCategory } from '@/app/data'
 import { THREAD_DESCRIPTION_MAX_CHARS, THREAD_NAME_MAX_CHARS } from '@/lib/thread-field-limits'
 
 interface CreateThreadDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   loomId: string
-  onThreadCreated: (threadId: string) => void
+  onThreadCreated: (thread: Thread) => void
 }
 
 export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated }: CreateThreadDialogProps) {
@@ -38,7 +38,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
         createdBy: String(user.id),
       })
       if (thread) {
-        onThreadCreated(thread.id)
+        onThreadCreated(thread)
         onOpenChange(false)
         resetForm()
       }

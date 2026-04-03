@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { SquarePen, Mailbox } from "lucide-react";
+import { SquarePen, Mailbox, ArrowDownToLine, Apple, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RAIL_WIDTH } from "@/lib/layout-constants";
 import { ThemeAvatarImage } from "./ui/theme-avatar";
@@ -18,6 +18,73 @@ import { Message } from "@/app/data";
 import { UserAvatarMenu } from "./user-avatar-menu";
 import { Skeleton } from "./ui/skeleton";
 import { NewChatDialog } from "./new-chat-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const DESKTOP_RELEASE_MAC =
+  "https://github.com/trueosdev/trueChat/releases/download/0.1.0/trueChats-0.1.0-mac-arm64.dmg";
+const DESKTOP_RELEASE_WINDOWS =
+  "https://github.com/trueosdev/trueChat/releases/download/0.1.0/trueChats-0.1.0-win-arm64.exe";
+
+function DesktopDownloadMenu({ collapsed }: { collapsed: boolean }) {
+  return (
+    <TooltipProvider>
+      <DropdownMenu>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon" }),
+                  "h-9 w-9",
+                  collapsed && "flex items-center justify-center",
+                )}
+              >
+                <ArrowDownToLine size={20} />
+                <span className="sr-only">Download desktop app</span>
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right">Download desktop app</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent
+          side={collapsed ? "right" : "bottom"}
+          align="start"
+          sideOffset={8}
+          className="w-48"
+        >
+          <DropdownMenuItem asChild>
+            <a
+              href={DESKTOP_RELEASE_MAC}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex cursor-pointer items-center gap-2"
+            >
+              <Apple className="h-4 w-4 shrink-0" aria-hidden />
+              Mac
+            </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <a
+              href={DESKTOP_RELEASE_WINDOWS}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex cursor-pointer items-center gap-2"
+            >
+              <Monitor className="h-4 w-4 shrink-0" aria-hidden />
+              Windows
+            </a>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TooltipProvider>
+  );
+}
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -101,6 +168,8 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            <DesktopDownloadMenu collapsed={false} />
           </div>
         </div>
       )}
@@ -168,6 +237,8 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          <DesktopDownloadMenu collapsed />
         </div>
       )}
       {customNav ? (
