@@ -72,17 +72,11 @@ const config = {
           "0%": { transform: "scale(0.88)", opacity: "0.55" },
           "100%": { transform: "scale(1.42)", opacity: "0" },
         },
-        /** Voice call: radial waveform bars */
-        "speak-bar-wave": {
-          "0%, 100%": { height: "0.2rem", opacity: "0.4" },
-          "50%": { height: "0.75rem", opacity: "1" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "speak-ring-expand": "speak-ring-expand 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite",
-        "speak-bar-wave": "speak-bar-wave 0.85s ease-in-out infinite",
       },
     },
   },

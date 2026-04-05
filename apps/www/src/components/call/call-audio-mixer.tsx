@@ -19,7 +19,7 @@ import {
 import { CallParticipantTile } from "@/components/call/call-participant-tile";
 import { getTrackReferenceId } from "@livekit/components-core";
 import { Track } from "livekit-client";
-import { Volume2, VolumeX } from "lucide-react";
+import { MonitorSpeaker, Volume2, VolumeX } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -28,6 +28,21 @@ import {
 } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/** Unit separator so mix keys never collide with raw LiveKit identities. */
+const MIX_KEY_SCREEN_AUDIO = "\u001fssa";
+
+export type ParticipantAudioMixKind = "microphone" | "screen_share_audio";
+
+/** Storage key for per-source volume (mic vs tab/system audio from screen share). */
+export function participantAudioMixKey(
+  identity: string,
+  kind: ParticipantAudioMixKind,
+): string {
+  return kind === "screen_share_audio"
+    ? `${identity}${MIX_KEY_SCREEN_AUDIO}`
+    : identity;
+}
 
 type MixEntry = { volume: number; muted: boolean };
 
@@ -115,29 +130,43 @@ export function PerParticipantRoomAudioRenderer() {
 
   return (
     <div className="hidden" aria-hidden>
-      {tracks.map((trackRef) => (
-        <AudioTrack
-          key={getTrackReferenceId(trackRef)}
-          trackRef={trackRef}
-          volume={getEffectiveVolume(trackRef.participant.identity)}
-        />
-      ))}
+      {tracks.map((trackRef) => {
+        const mixKey = participantAudioMixKey(
+          trackRef.participant.identity,
+          trackRef.source === Track.Source.ScreenShareAudio
+            ? "screen_share_audio"
+            : "microphone",
+        );
+        return (
+          <AudioTrack
+            key={getTrackReferenceId(trackRef)}
+            trackRef={trackRef}
+            volume={getEffectiveVolume(mixKey)}
+          />
+        );
+      })}
     </div>
   );
 }
 
 function ParticipantMixerMenuContent({
-  identity,
+  mixKey,
   displayName,
+  sourceLabel,
+  audioMixKind,
   menuZClassName,
 }: {
-  identity: string;
+  mixKey: string;
   displayName: string;
+  /** Shown above the name, e.g. "Microphone" vs "Screen share audio". */
+  sourceLabel: string;
+  audioMixKind: ParticipantAudioMixKind;
   menuZClassName?: string;
 }) {
   const { getMix, setVolume, toggleMute } = useCallAudioMixer();
-  const { volume, muted } = getMix(identity);
+  const { volume, muted } = getMix(mixKey);
   const sliderPct = Math.round((muted ? 0 : volume) * 100);
+  const isScreenShareAudio = audioMixKind === "screen_share_audio";
 
   return (
     <ContextMenuContent
@@ -151,7 +180,7 @@ function ParticipantMixerMenuContent({
     >
       <ContextMenuLabel className="border-b border-border px-3 pb-2.5 pt-3 font-normal">
         <span className="text-[11px] font-medium text-muted-foreground">
-          Audio mix
+          {sourceLabel}
         </span>
         <span className="mt-0.5 block truncate text-sm font-semibold leading-tight text-foreground">
           {displayName}
@@ -172,11 +201,21 @@ function ParticipantMixerMenuContent({
             muted &&
               "bg-red-500/15 text-red-700 hover:bg-red-500/20 hover:text-red-800 dark:text-red-400 dark:hover:bg-red-500/25 dark:hover:text-red-300",
           )}
-          aria-label={muted ? "Unmute participant" : "Mute participant"}
-          onClick={() => toggleMute(identity)}
+          aria-label={
+            muted
+              ? isScreenShareAudio
+                ? "Unmute screen share audio"
+                : "Unmute participant microphone"
+              : isScreenShareAudio
+                ? "Mute screen share audio"
+                : "Mute participant microphone"
+          }
+          onClick={() => toggleMute(mixKey)}
         >
           {muted ? (
             <VolumeX className="h-[1.15rem] w-[1.15rem]" strokeWidth={2} />
+          ) : isScreenShareAudio ? (
+            <MonitorSpeaker className="h-[1.15rem] w-[1.15rem]" strokeWidth={2} />
           ) : (
             <Volume2 className="h-[1.15rem] w-[1.15rem]" strokeWidth={2} />
           )}
@@ -195,7 +234,7 @@ function ParticipantMixerMenuContent({
             min={0}
             max={100}
             value={sliderPct}
-            aria-label={`Volume for ${displayName}`}
+            aria-label={`${sourceLabel} volume for ${displayName}`}
             className={cn(
               "h-2 w-full min-w-0 cursor-pointer appearance-none rounded-full bg-transparent",
               "accent-primary",
@@ -206,7 +245,7 @@ function ParticipantMixerMenuContent({
             )}
             onChange={(e) => {
               const v = Number(e.target.value) / 100;
-              setVolume(identity, v);
+              setVolume(mixKey, v);
             }}
           />
         </div>
@@ -244,6 +283,19 @@ export const MixerParticipantTile = forwardRef<
     trackReference.participant.identity ||
     "Participant";
 
+  const audioMixKind: ParticipantAudioMixKind =
+    trackReference.source === Track.Source.ScreenShare
+      ? "screen_share_audio"
+      : "microphone";
+  const mixKey = participantAudioMixKey(
+    trackReference.participant.identity,
+    audioMixKind,
+  );
+  const sourceLabel =
+    audioMixKind === "screen_share_audio"
+      ? "Screen share audio"
+      : "Microphone";
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -258,8 +310,10 @@ export const MixerParticipantTile = forwardRef<
         </div>
       </ContextMenuTrigger>
       <ParticipantMixerMenuContent
-        identity={trackReference.participant.identity}
+        mixKey={mixKey}
         displayName={displayName}
+        sourceLabel={sourceLabel}
+        audioMixKind={audioMixKind}
         menuZClassName={mixerMenuContentClassName}
       />
     </ContextMenu>
@@ -277,14 +331,17 @@ export function RemoteParticipantMixerBubble({
   menuZClassName?: string;
   children: ReactNode;
 }) {
+  const mixKey = participantAudioMixKey(identity, "microphone");
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div className="inline-flex cursor-context-menu">{children}</div>
       </ContextMenuTrigger>
       <ParticipantMixerMenuContent
-        identity={identity}
+        mixKey={mixKey}
         displayName={displayName}
+        sourceLabel="Microphone"
+        audioMixKind="microphone"
         menuZClassName={menuZClassName}
       />
     </ContextMenu>

@@ -252,7 +252,14 @@ app.whenReady().then(async () => {
   setupMediaPermissions();
   setupDisplayMediaHandler();
 
-  Menu.setApplicationMenu(buildMenu());
+  // macOS: system menu bar. Windows: hide the in-window File/Edit/View bar.
+  if (process.platform === "darwin") {
+    Menu.setApplicationMenu(buildMenu());
+  } else if (process.platform === "win32") {
+    Menu.setApplicationMenu(null);
+  } else {
+    Menu.setApplicationMenu(buildMenu());
+  }
 
   if (process.platform === "darwin") {
     app.dock.setIcon(iconPath);

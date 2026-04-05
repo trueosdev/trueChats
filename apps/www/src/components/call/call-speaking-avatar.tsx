@@ -6,24 +6,18 @@ import { Avatar } from "@/components/ui/avatar";
 import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import { cn } from "@/lib/utils";
 
-const RADIAL_BAR_COUNT = 14;
-
 const sizePresets = {
   /** DM audio-only row */
   compact: {
     wrap: "h-28 w-28",
     avatar: "h-[4.5rem] w-[4.5rem]",
     ring: "h-[4.9rem] w-[4.9rem]",
-    orbitRem: 2.78,
-    barWidth: "w-[2.5px]",
   },
   /** Video tile when camera is off */
   comfortable: {
     wrap: "h-[min(42vw,10.5rem)] w-[min(42vw,10.5rem)] min-h-[7.5rem] min-w-[7.5rem] max-h-[11rem] max-w-[11rem]",
     avatar: "h-[72%] w-[72%] max-h-36 max-w-36",
     ring: "h-[78%] w-[78%] max-h-[9.85rem] max-w-[9.85rem]",
-    orbitRem: 4.15,
-    barWidth: "w-[3px]",
   },
 } as const;
 
@@ -93,33 +87,6 @@ export function CallSpeakingAvatar({
             </span>
           </>
         ) : null}
-
-        {isSpeaking
-          ? Array.from({ length: RADIAL_BAR_COUNT }).map((_, i) => {
-              const deg = (i / RADIAL_BAR_COUNT) * 360 - 90;
-              return (
-                <div
-                  key={i}
-                  className="pointer-events-none absolute left-1/2 top-1/2 z-[2]"
-                  style={{
-                    transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-${preset.orbitRem}rem)`,
-                  }}
-                  aria-hidden
-                >
-                  <div
-                    className={cn(
-                      "min-h-[3px] rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.65)] animate-speak-bar-wave",
-                      preset.barWidth,
-                    )}
-                    style={{
-                      animationDelay: `${(i / RADIAL_BAR_COUNT) * 0.75}s`,
-                      animationDuration: `${0.72 + (i % 5) * 0.05}s`,
-                    }}
-                  />
-                </div>
-              );
-            })
-          : null}
 
         <Avatar
           className={cn(
