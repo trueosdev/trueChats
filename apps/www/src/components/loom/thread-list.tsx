@@ -16,6 +16,7 @@ import {
   FolderPlus,
   MoreHorizontal,
   Plus,
+  Folder,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -45,6 +46,7 @@ import {
   updateThreadFolder,
 } from '@/lib/services/threads'
 import type { Loom, Thread, ThreadFolder } from '@/app/data'
+import { FolderNameCard } from '@/components/loom/folder-name-card'
 import {
   THREAD_FOLDER_NAME_MAX_CHARS,
   THREAD_NAME_MAX_CHARS,
@@ -94,6 +96,11 @@ export function ThreadList({
   const [saveSuccess, setSaveSuccess] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [folderOpenMap, setFolderOpenMap] = useState<Record<string, boolean>>({})
+  const [newFolderPopoverOpen, setNewFolderPopoverOpen] = useState(false)
+  const [newFolderFormKey, setNewFolderFormKey] = useState(0)
+  const [renameTarget, setRenameTarget] = useState<ThreadFolder | null>(null)
+  const [folderNameBusy, setFolderNameBusy] = useState(false)
+  const [dragOverDropId, setDragOverDropId] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -165,25 +172,66 @@ export function ThreadList({
     return out
   }, [pinnedThreads, regularThreads, sortedFolders])
 
-  const handleNewFolder = async () => {
-    if (!user) return
-    const name = window.prompt('Folder name')
-    const trimmed = name?.trim().slice(0, THREAD_FOLDER_NAME_MAX_CHARS)
-    if (!trimmed) return
-    const folder = await createThreadFolder({
-      loomId: loom.id,
-      name: trimmed,
-      createdBy: String(user.id),
+  const openFolderExpanded = useCallback((folderId: string) => {
+    setFolderOpenMap((prev) => {
+      const next = { ...prev, [folderId]: true }
+      try {
+        localStorage.setItem(
+          folderOpenStorageKey(loom.id),
+          JSON.stringify(next),
+        )
+      } catch {
+        /* ignore */
+      }
+      return next
     })
-    if (folder) addThreadFolder(folder)
+  }, [loom.id])
+
+  const moveThreadToFolder = useCallback(
+    async (threadId: string, folderId: string | null) => {
+      const thread = threads.find((t) => t.id === threadId)
+      if (!thread || thread.folder_id === folderId) return
+      const ok = await updateThread(threadId, { folder_id: folderId })
+      if (ok) {
+        useChatStore.getState().updateThread(threadId, { folder_id: folderId })
+        if (folderId) openFolderExpanded(folderId)
+      }
+    },
+    [threads, openFolderExpanded],
+  )
+
+  const confirmNewFolder = async (trimmed: string) => {
+    if (!user) return
+    setFolderNameBusy(true)
+    try {
+      const folder = await createThreadFolder({
+        loomId: loom.id,
+        name: trimmed,
+        createdBy: String(user.id),
+      })
+      if (folder) {
+        addThreadFolder(folder)
+        setNewFolderPopoverOpen(false)
+      }
+    } finally {
+      setFolderNameBusy(false)
+    }
   }
 
-  const handleRenameFolder = async (folder: ThreadFolder) => {
-    const name = window.prompt('Rename folder', folder.name)
-    const trimmed = name?.trim().slice(0, THREAD_FOLDER_NAME_MAX_CHARS)
-    if (!trimmed || trimmed === folder.name) return
-    const ok = await updateThreadFolder(folder.id, { name: trimmed })
-    if (ok) updateThreadFolderStore(folder.id, { name: trimmed })
+  const confirmRenameFolder = async (trimmed: string) => {
+    if (!renameTarget) return
+    if (trimmed === renameTarget.name) {
+      setRenameTarget(null)
+      return
+    }
+    setFolderNameBusy(true)
+    try {
+      const ok = await updateThreadFolder(renameTarget.id, { name: trimmed })
+      if (ok) updateThreadFolderStore(renameTarget.id, { name: trimmed })
+      setRenameTarget(null)
+    } finally {
+      setFolderNameBusy(false)
+    }
   }
 
   const handleDeleteFolder = async (folder: ThreadFolder) => {
@@ -411,6 +459,7 @@ export function ThreadList({
   }
 
   return (
+    <>
     <div className="flex h-full flex-col bg-background">
       {/* Loom header */}
       <div className="shrink-0 border-b border-border px-3 pb-2 pt-4">
@@ -484,9 +533,9 @@ export function ThreadList({
                   <ThreadItem
                     key={thread.id}
                     thread={thread}
-                    threadFolders={sortedFolders}
                     selected={selectedThreadId === thread.id}
                     onSelect={() => onThreadSelect(thread.id)}
+                    onDragEnd={() => setDragOverDropId(null)}
                   />
                 ))}
               </div>
@@ -495,8 +544,27 @@ export function ThreadList({
             {sortedFolders.map((folder) => {
               const inFolder = regularThreads.filter((t) => t.folder_id === folder.id)
               const open = isFolderExpanded(folder.id)
+              const dropId = `folder-${folder.id}`
               return (
-                <div key={folder.id} className="mb-0.5">
+                <div
+                  key={folder.id}
+                  className={cn(
+                    "mb-0.5 rounded-md transition-colors",
+                    dragOverDropId === dropId &&
+                      "bg-primary/10 ring-2 ring-primary/30 ring-inset",
+                  )}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = "move"
+                    setDragOverDropId(dropId)
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragOverDropId(null)
+                    const id = e.dataTransfer.getData("text/plain")
+                    if (id) void moveThreadToFolder(id, folder.id)
+                  }}
+                >
                   <div className="flex items-center gap-0.5 pr-1">
                     <button
                       type="button"
@@ -531,9 +599,7 @@ export function ThreadList({
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem
-                          onClick={() => void handleRenameFolder(folder)}
-                        >
+                        <DropdownMenuItem onClick={() => setRenameTarget(folder)}>
                           Rename folder
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -546,19 +612,19 @@ export function ThreadList({
                     </DropdownMenu>
                   </div>
                   {open && (
-                    <div className="mt-0.5 space-y-0.5 pl-0.5">
+                    <div className="mt-0.5 min-h-[1.75rem] space-y-0.5 pl-0.5">
                       {inFolder.length === 0 ? (
-                        <p className="px-2 py-1 text-[11px] text-muted-foreground/80">
-                          Empty — use + to add a thread
+                        <p className="px-2 py-2 text-[11px] text-muted-foreground/80">
+                          Drop threads here or use + to add one
                         </p>
                       ) : (
                         inFolder.map((thread) => (
                           <ThreadItem
                             key={thread.id}
                             thread={thread}
-                            threadFolders={sortedFolders}
                             selected={selectedThreadId === thread.id}
                             onSelect={() => onThreadSelect(thread.id)}
+                            onDragEnd={() => setDragOverDropId(null)}
                           />
                         ))
                       )}
@@ -574,7 +640,24 @@ export function ThreadList({
               if (sortedFolders.length > 0) {
                 const open = isFolderExpanded(UNCATEGORIZED_FOLDER_KEY)
                 return (
-                  <div className="mb-0.5">
+                  <div
+                    className={cn(
+                      "mb-0.5 rounded-md transition-colors",
+                      dragOverDropId === "uncategorized" &&
+                        "bg-primary/10 ring-2 ring-primary/30 ring-inset",
+                    )}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = "move"
+                      setDragOverDropId("uncategorized")
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      setDragOverDropId(null)
+                      const id = e.dataTransfer.getData("text/plain")
+                      if (id) void moveThreadToFolder(id, null)
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={() => toggleFolderOpen(UNCATEGORIZED_FOLDER_KEY)}
@@ -590,14 +673,14 @@ export function ThreadList({
                       <span>Threads</span>
                     </button>
                     {open && (
-                      <div className="mt-0.5 space-y-0.5 pl-0.5">
+                      <div className="mt-0.5 min-h-[1.75rem] space-y-0.5 pl-0.5">
                         {uncategorized.map((thread) => (
                           <ThreadItem
                             key={thread.id}
                             thread={thread}
-                            threadFolders={sortedFolders}
                             selected={selectedThreadId === thread.id}
                             onSelect={() => onThreadSelect(thread.id)}
+                            onDragEnd={() => setDragOverDropId(null)}
                           />
                         ))}
                       </div>
@@ -616,23 +699,46 @@ export function ThreadList({
                     <ThreadItem
                       key={thread.id}
                       thread={thread}
-                      threadFolders={sortedFolders}
                       selected={selectedThreadId === thread.id}
                       onSelect={() => onThreadSelect(thread.id)}
+                      onDragEnd={() => setDragOverDropId(null)}
                     />
                   ))}
                 </div>
               )
             })()}
 
-            <button
-              type="button"
-              onClick={() => void handleNewFolder()}
-              className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
+            <Popover
+              open={newFolderPopoverOpen}
+              onOpenChange={(open) => {
+                setNewFolderPopoverOpen(open)
+                if (open) setNewFolderFormKey((k) => k + 1)
+              }}
             >
-              <FolderPlus size={14} className="shrink-0" />
-              <span>New folder</span>
-            </button>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
+                >
+                  <Folder size={14} className="shrink-0" />
+                  <span>New folder</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="bottom"
+                align="start"
+                sideOffset={6}
+                className="w-auto border-0 bg-transparent p-0 shadow-none"
+              >
+                <FolderNameCard
+                  key={newFolderFormKey}
+                  variant="create"
+                  busy={folderNameBusy}
+                  onClose={() => setNewFolderPopoverOpen(false)}
+                  onConfirm={confirmNewFolder}
+                />
+              </PopoverContent>
+            </Popover>
             <button
               type="button"
               onClick={() => onCreateThread(null)}
@@ -765,19 +871,48 @@ export function ThreadList({
         </div>
       )}
     </div>
+
+    {renameTarget ? (
+      <div
+        className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[1px]"
+        role="presentation"
+        onClick={() => {
+          if (!folderNameBusy) setRenameTarget(null);
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal
+          className="shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FolderNameCard
+            key={renameTarget.id}
+            variant="rename"
+            initialName={renameTarget.name}
+            busy={folderNameBusy}
+            onClose={() => {
+              if (!folderNameBusy) setRenameTarget(null);
+            }}
+            onConfirm={confirmRenameFolder}
+          />
+        </div>
+      </div>
+    ) : null}
+    </>
   )
 }
 
 function ThreadItem({
   thread,
-  threadFolders,
   selected,
   onSelect,
+  onDragEnd,
 }: {
   thread: Thread
-  threadFolders: ThreadFolder[]
   selected: boolean
   onSelect: () => void
+  onDragEnd?: () => void
 }) {
   const { user } = useAuth()
   const updateThreadInStore = useChatStore((s) => s.updateThread)
@@ -832,15 +967,21 @@ function ThreadItem({
     >
       <button
         type="button"
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", thread.id)
+          e.dataTransfer.effectAllowed = "move"
+        }}
+        onDragEnd={() => onDragEnd?.()}
         onClick={onSelect}
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none',
-          !selected && 'hover:text-foreground',
+          "flex min-w-0 flex-1 cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none active:cursor-grabbing",
+          !selected && "hover:text-foreground",
         )}
       >
-        {thread.category === 'voice' ? (
+        {thread.category === "voice" ? (
           <Video size={14} className="shrink-0" />
-        ) : thread.type === 'private' ? (
+        ) : thread.type === "private" ? (
           <Lock size={14} className="shrink-0" />
         ) : (
           <LineSquiggle size={14} className="shrink-0" />
@@ -893,29 +1034,6 @@ function ThreadItem({
                   {editName.length}/{THREAD_NAME_MAX_CHARS}
                 </p>
               </div>
-              {threadFolders.length > 0 && (
-                <div className="space-y-1 border-t border-border pt-3">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Folder
-                  </p>
-                  <select
-                    className="w-full rounded-lg border border-border bg-background px-2 py-2 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-                    value={thread.folder_id ?? ''}
-                    onChange={async (e) => {
-                      const v = e.target.value === '' ? null : e.target.value
-                      const ok = await updateThread(thread.id, { folder_id: v })
-                      if (ok) updateThreadInStore(thread.id, { folder_id: v })
-                    }}
-                  >
-                    <option value="">None</option>
-                    {threadFolders.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
               {error && (
                 <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
               )}
