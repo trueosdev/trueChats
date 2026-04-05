@@ -8,7 +8,7 @@ npm install
 npm run dist
 ```
 
-Runs `next build`, then packages **macOS** and **Windows** with `electron-builder` (`--publish never`). Output is under `dist/`.
+Runs `next build`, then packages **macOS** and **Windows** with `electron-builder` (`--publish never`). Output is under `dist/`. The Windows NSIS installer is **x64** only (typical Intel/AMD PCs), including when you build on Apple Silicon—so friends should use `*-win-x64.exe`, not `win-arm64` artifacts.
 
 ## Shipping updates to users
 

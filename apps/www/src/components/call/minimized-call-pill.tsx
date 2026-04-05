@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveKitRoom, useLocalParticipant } from "@livekit/components-react";
 import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-  useLocalParticipant,
-} from "@livekit/components-react";
+  CallAudioMixerProvider,
+  PerParticipantRoomAudioRenderer,
+} from "@/components/call/call-audio-mixer";
 import { PhoneOff, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import { useCall } from "./call-provider";
 import { RemoteMicWaveform } from "./remote-mic-waveform";
+import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
+import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
 
 function PillTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -110,10 +112,14 @@ export function MinimizedCallPill() {
       connect={true}
       video={false}
       audio={true}
+      options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
       onDisconnected={hangUp}
     >
-      <RoomAudioRenderer />
-      <PillControls />
+      <EnsureDefaultMediaDevices video={false} />
+      <CallAudioMixerProvider>
+        <PerParticipantRoomAudioRenderer />
+        <PillControls />
+      </CallAudioMixerProvider>
     </LiveKitRoom>
   );
 }

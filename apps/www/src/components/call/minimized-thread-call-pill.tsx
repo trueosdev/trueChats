@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiveKitRoom } from "@livekit/components-react";
 import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-} from "@livekit/components-react";
+  CallAudioMixerProvider,
+  PerParticipantRoomAudioRenderer,
+} from "@/components/call/call-audio-mixer";
 import { PhoneOff, Maximize2, LineSquiggle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useThreadCall } from "./thread-call-provider";
 import useChatStore from "@/hooks/useChatStore";
+import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
+import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
 
 function PillTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -111,10 +114,14 @@ export function MinimizedThreadCallPill() {
       connect={true}
       video={false}
       audio={true}
+      options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
       onDisconnected={leaveThreadCall}
     >
-      <RoomAudioRenderer />
-      <PillControls />
+      <EnsureDefaultMediaDevices video={false} />
+      <CallAudioMixerProvider>
+        <PerParticipantRoomAudioRenderer />
+        <PillControls />
+      </CallAudioMixerProvider>
     </LiveKitRoom>
   );
 }

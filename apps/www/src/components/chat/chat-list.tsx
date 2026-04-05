@@ -229,12 +229,14 @@ export function ChatList({
                     opacity: { duration: 0 },
                     layout: { type: "spring", bounce: 0.3, duration: 0 },
                   }}
-                  className={`group flex gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] px-1 rounded-md -mx-1 ${
-                    showHeader
-                      ? "mt-4 py-0.5 first:mt-0"
-                      : "mt-0.5 py-0 first:mt-0"
-                  }`}
                 >
+                  <div
+                    className={`group flex gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] px-1 rounded-md -mx-1 ${
+                      showHeader
+                        ? "mt-4 py-0.5 first:mt-0"
+                        : "mt-0.5 py-0 first:mt-0"
+                    }`}
+                  >
                   {/* Avatar column */}
                   <div className="w-10 shrink-0 pt-0.5">
                     {showHeader && <MessageAvatar avatarUrl={message.avatar} />}
@@ -455,6 +457,7 @@ export function ChatList({
                       </ContextMenuContent>
                     </ContextMenu>
                   </div>
+                  </div>
                 </motion.div>
               </React.Fragment>
             );
@@ -466,13 +469,14 @@ export function ChatList({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="mt-2 flex gap-3 px-1 py-0.5"
             >
+              <div className="mt-2 flex gap-3 px-1 py-0.5">
               <div className="w-10 shrink-0" />
               <div className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
                 <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
+              </div>
               </div>
             </motion.div>
           )}

@@ -150,7 +150,7 @@ export function ThreadList({
 
     const ok = await updateLoom(loom.id, updates, String(user.id))
     if (!ok) {
-      setSettingsError('Failed to save. Check your permissions.')
+      setSettingsError('You don\'t have permission to update this Loom.')
       setSaving(false)
       return
     }

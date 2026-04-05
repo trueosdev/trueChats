@@ -293,7 +293,7 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
         </div>
       )}
       
-      <div className="px-2 py-4 flex justify-between w-full items-center gap-2">
+      <div className="flex w-full items-center gap-2 px-2 py-4">
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -314,7 +314,7 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
         />
       )}
       
-      <div className="flex">
+      <div className="flex shrink-0">
         {BottombarIcons.map((icon, index) => (
           <button
             key={index}
@@ -334,8 +334,8 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
       <AnimatePresence initial={false}>
         <motion.div
           key="input"
-          className="w-full relative"
           layout
+          className="min-w-0 flex-1"
           initial={{ opacity: 0, scale: 1 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1 }}
@@ -347,6 +347,7 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
             },
           }}
         >
+          <div className="relative w-full">
           <ChatInput
             value={message}
             ref={inputRef}
@@ -387,6 +388,7 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
                 <Send size={22} className="text-muted-foreground" />
               )}
             </Button>
+          </div>
           </div>
         </motion.div>
       </AnimatePresence>

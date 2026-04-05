@@ -109,12 +109,8 @@ export function LiveKitLucideControlBar({
   screenShare = true,
 }: LiveKitLucideControlBarProps) {
   const permissions = useLocalParticipantPermissions()
-  const {
-    saveAudioInputEnabled,
-    saveVideoInputEnabled,
-    saveAudioInputDeviceId,
-    saveVideoInputDeviceId,
-  } = usePersistentUserChoices({})
+  const { saveAudioInputEnabled, saveVideoInputEnabled } =
+    usePersistentUserChoices({})
 
   const microphoneOnChange = useCallback(
     (enabled: boolean, isUserInitiated: boolean) =>
@@ -156,12 +152,7 @@ export function LiveKitLucideControlBar({
             onDeviceError={(error) => console.error("Mic device error", error)}
           />
           <div className="lk-button-group-menu">
-            <MediaDeviceMenu
-              kind="audioinput"
-              onActiveDeviceChange={(_kind, deviceId) =>
-                saveAudioInputDeviceId(deviceId ?? "default")
-              }
-            >
+            <MediaDeviceMenu kind="audioinput">
               <ChevronUp className="h-4 w-4" />
             </MediaDeviceMenu>
           </div>
@@ -174,12 +165,7 @@ export function LiveKitLucideControlBar({
             onDeviceError={(error) => console.error("Camera device error", error)}
           />
           <div className="lk-button-group-menu">
-            <MediaDeviceMenu
-              kind="videoinput"
-              onActiveDeviceChange={(_kind, deviceId) =>
-                saveVideoInputDeviceId(deviceId ?? "default")
-              }
-            >
+            <MediaDeviceMenu kind="videoinput">
               <ChevronUp className="h-4 w-4" />
             </MediaDeviceMenu>
           </div>

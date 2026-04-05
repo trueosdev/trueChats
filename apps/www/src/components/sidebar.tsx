@@ -28,7 +28,7 @@ import {
 const DESKTOP_RELEASE_MAC =
   "https://github.com/trueosdev/trueChat/releases/download/0.1.0/trueChats-0.1.0-mac-arm64.dmg";
 const DESKTOP_RELEASE_WINDOWS =
-  "https://github.com/trueosdev/trueChat/releases/download/0.1.0/trueChats-0.1.0-win-arm64.exe";
+  "https://github.com/trueosdev/trueChat/releases/download/0.1.0/trueChats-0.1.0-win-x64.exe";
 
 function DesktopDownloadMenu({ collapsed }: { collapsed: boolean }) {
   return (

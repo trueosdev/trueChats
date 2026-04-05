@@ -5,12 +5,16 @@ import "@/app/livekit-overrides.css";
 import { useEffect, useState } from "react";
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
   GridLayout,
-  ParticipantTile,
   useTracks,
   useRemoteParticipants,
 } from "@livekit/components-react";
+import {
+  CallAudioMixerProvider,
+  MixerParticipantTile,
+  PerParticipantRoomAudioRenderer,
+  RemoteParticipantMixerBubble,
+} from "@/components/call/call-audio-mixer";
 import { LiveKitLucideControlBar } from "@/components/call/livekit-lucide-control-bar";
 import { Track } from "livekit-client";
 import { PhoneOff, Minimize2 } from "lucide-react";
@@ -19,6 +23,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import { useCall } from "./call-provider";
 import { RemoteMicWaveform } from "./remote-mic-waveform";
+import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
+import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
 import { useAuth } from "@/hooks/useAuth";
 import { getAvatarUrl } from "@/lib/utils";
 
@@ -108,12 +114,17 @@ function AudioOnlyView() {
           isSpeaking={false}
         />
         {hasRemote ? (
-          <ParticipantBubble
-            avatarUrl={remoteUser?.avatar ?? null}
-            name={remoteUser?.name || ""}
-            isSpeaking={remoteParticipants[0]?.isSpeaking}
-            liveWaveform
-          />
+          <RemoteParticipantMixerBubble
+            identity={remoteParticipants[0]!.identity}
+            displayName={remoteUser?.name || remoteParticipants[0]!.identity}
+          >
+            <ParticipantBubble
+              avatarUrl={remoteUser?.avatar ?? null}
+              name={remoteUser?.name || ""}
+              isSpeaking={remoteParticipants[0]?.isSpeaking}
+              liveWaveform
+            />
+          </RemoteParticipantMixerBubble>
         ) : (
           <div className="flex flex-col items-center gap-2">
             <div className="h-24 w-24 rounded-full ring-1 ring-white/10 bg-white/5 flex items-center justify-center">
@@ -135,8 +146,6 @@ function AudioOnlyView() {
       </div>
 
       <CallTimer />
-
-      <RoomAudioRenderer />
 
       <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex items-center gap-3 mt-4 overflow-visible">
         <LiveKitLucideControlBar microphone camera={false} screenShare={false} />
@@ -175,7 +184,7 @@ function VideoView() {
     <div className="flex h-full flex-col bg-black" data-call-video-tiles="portrait-34">
       <div className="flex-1 min-h-0">
         <GridLayout tracks={tracks}>
-          <ParticipantTile />
+          <MixerParticipantTile />
         </GridLayout>
       </div>
       <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex items-center justify-center gap-3 overflow-visible py-4 bg-black/80 backdrop-blur-sm">
@@ -216,11 +225,16 @@ export function ActiveCallView() {
         connect={true}
         video={callType === "video"}
         audio={true}
+        options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
         onDisconnected={hangUp}
         data-lk-theme="default"
         className="flex h-full flex-col"
       >
-        {callType === "video" ? <VideoView /> : <AudioOnlyView />}
+        <EnsureDefaultMediaDevices video={callType === "video"} />
+        <CallAudioMixerProvider>
+          {callType === "video" ? <VideoView /> : <AudioOnlyView />}
+          <PerParticipantRoomAudioRenderer />
+        </CallAudioMixerProvider>
       </LiveKitRoom>
     </div>
   );

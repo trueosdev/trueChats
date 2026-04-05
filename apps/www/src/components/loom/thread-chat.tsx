@@ -4,17 +4,19 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, typ
 import { Lock, Video, PhoneOff, Phone, PhoneCall, LineSquiggle } from 'lucide-react'
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
   GridLayout,
-  ParticipantTile,
   useTracks,
   LayoutContextProvider,
   useCreateLayoutContext,
   usePinnedTracks,
   TrackLoop,
-  FocusLayout,
   FocusLayoutContainer,
 } from '@livekit/components-react'
+import {
+  CallAudioMixerProvider,
+  MixerParticipantTile,
+  PerParticipantRoomAudioRenderer,
+} from '@/components/call/call-audio-mixer'
 import { isEqualTrackRef, isTrackReference } from '@livekit/components-core'
 import type { TrackReferenceOrPlaceholder } from '@livekit/components-core'
 import '@livekit/components-styles'
@@ -22,6 +24,8 @@ import '@/app/livekit-overrides.css'
 import { Track } from 'livekit-client'
 import { Button } from '@/components/ui/button'
 import { LiveKitLucideControlBar } from '@/components/call/livekit-lucide-control-bar'
+import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from '@/components/call/livekit-room-media-defaults'
+import { EnsureDefaultMediaDevices } from '@/components/call/ensure-default-media-devices'
 import { useThreadCall } from '@/components/call/thread-call-provider'
 import { ExpandableChatHeader } from '@shadcn-chat/ui'
 import { ChatList } from '../chat/chat-list'
@@ -206,7 +210,7 @@ function ThreadCallCarouselStrip({ tracks }: { tracks: TrackReferenceOrPlacehold
   return (
     <aside key={carouselOrientation} ref={asideEl} className="lk-carousel min-h-0">
       <TrackLoop tracks={tracks}>
-        <ParticipantTile />
+        <MixerParticipantTile />
       </TrackLoop>
     </aside>
   )
@@ -303,14 +307,16 @@ function CallGrid() {
         {!focusTrack ? (
           <div className="flex-1 min-h-0 w-full min-w-0 overflow-hidden">
             <GridLayout tracks={tracks} style={{ height: '100%' }}>
-              <ParticipantTile />
+              <MixerParticipantTile />
             </GridLayout>
           </div>
         ) : (
           <div className="flex-1 min-h-0 w-full min-w-0 overflow-hidden flex flex-col">
             <FocusLayoutContainer className="h-full min-h-0 max-h-full flex-1 overflow-hidden">
               <ThreadCallCarouselStrip tracks={carouselTracks} />
-              {focusTrack ? <FocusLayout trackRef={focusTrack} className="min-h-0 min-w-0" /> : null}
+              {focusTrack ? (
+                <MixerParticipantTile trackRef={focusTrack} className="min-h-0 min-w-0" />
+              ) : null}
             </FocusLayoutContainer>
           </div>
         )}
@@ -503,13 +509,17 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
             connect={true}
             audio={true}
             video={false}
+            options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
             onDisconnected={threadCall.leaveThreadCall}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
           >
-            <CallGrid />
-            <CallControls onLeave={threadCall.leaveThreadCall} />
-            <RoomAudioRenderer />
+            <EnsureDefaultMediaDevices video={false} />
+            <CallAudioMixerProvider>
+              <CallGrid />
+              <CallControls onLeave={threadCall.leaveThreadCall} />
+              <PerParticipantRoomAudioRenderer />
+            </CallAudioMixerProvider>
           </LiveKitRoom>
         </div>
       ) : (
