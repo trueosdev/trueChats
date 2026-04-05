@@ -162,22 +162,22 @@ export function ThreadList({
 
   if (isCollapsed) {
     return (
-      <div className="flex flex-col items-center gap-2 px-2 py-2 h-full">
+      <div className="flex h-full flex-col items-center gap-2 bg-background px-2 py-2">
         <TooltipProvider>
           <Tooltip delayDuration={0}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <TooltipTrigger asChild>
-                  <button className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center shrink-0 hover:bg-black/15 dark:hover:bg-white/15 transition-colors">
+                  <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background transition-colors hover:bg-muted">
                     {loom.icon_url ? (
                       <Avatar className="h-8 w-8 rounded-lg">
                         <AvatarImage src={loom.icon_url} alt={loom.name} />
-                        <AvatarFallback className="rounded-lg bg-black/10 dark:bg-white/10">
-                          <LoomIcon size={16} className="text-black dark:text-white" />
+                        <AvatarFallback className="rounded-lg bg-muted">
+                          <LoomIcon size={16} className="text-foreground" />
                         </AvatarFallback>
                       </Avatar>
                     ) : (
-                      <LoomIcon size={16} className="text-black dark:text-white" />
+                      <LoomIcon size={16} className="text-foreground" />
                     )}
                   </button>
                 </TooltipTrigger>
@@ -198,12 +198,12 @@ export function ThreadList({
           </Tooltip>
         </TooltipProvider>
 
-        <div className="w-6 border-t border-black/10 dark:border-white/10 my-1" />
+        <div className="my-1 w-6 border-t border-border" />
 
         <div className="flex-1 overflow-y-auto flex flex-col items-center gap-1 w-full">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="w-8 h-8 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
+              <div key={i} className="h-8 w-8 animate-pulse rounded bg-muted" />
             ))
           ) : (
             [...pinnedThreads, ...regularThreads].map(thread => (
@@ -215,7 +215,7 @@ export function ThreadList({
                       className={cn(
                         buttonVariants({ variant: "ghost", size: "icon" }),
                         "h-8 w-8 shrink-0",
-                        selectedThreadId === thread.id && "bg-black/10 dark:bg-white/10"
+                        selectedThreadId === thread.id && "bg-primary/10"
                       )}
                     >
                       {thread.category === 'voice' ? <Video size={14} /> : thread.type === 'private' ? <Lock size={14} /> : <LineSquiggle size={14} />}
@@ -267,28 +267,28 @@ export function ThreadList({
   }
 
   return (
-    <div className="flex flex-col h-full bg-muted/10 dark:bg-muted/20">
+    <div className="flex h-full flex-col bg-background">
       {/* Loom header */}
-      <div className="px-3 pt-4 pb-2 border-b border-black/10 dark:border-white/10 shrink-0">
+      <div className="shrink-0 border-b border-border px-3 pb-2 pt-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center shrink-0">
+            <button className="mb-2 flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-muted">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
                 {loom.icon_url ? (
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage src={loom.icon_url} alt={loom.name} />
-                    <AvatarFallback className="rounded-lg bg-black/10 dark:bg-white/10">
-                      <LoomIcon size={16} className="text-black dark:text-white" />
+                    <AvatarFallback className="rounded-lg bg-muted">
+                      <LoomIcon size={16} className="text-foreground" />
                     </AvatarFallback>
                   </Avatar>
                 ) : (
-                  <LoomIcon size={16} className="text-black dark:text-white" />
+                  <LoomIcon size={16} className="text-foreground" />
                 )}
               </div>
-              <div className="flex-1 min-w-0 text-left">
-                <h2 className="text-sm font-semibold text-black dark:text-white truncate">{loom.name}</h2>
+              <div className="min-w-0 flex-1 text-left">
+                <h2 className="truncate text-sm font-semibold text-foreground">{loom.name}</h2>
                 {loom.description && (
-                  <p className="text-[11px] text-black/40 dark:text-white/40 truncate">{loom.description}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{loom.description}</p>
                 )}
               </div>
             </button>
@@ -313,16 +313,16 @@ export function ThreadList({
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex items-center gap-2 px-2 py-2">
-              <div className="w-4 h-4 rounded bg-black/10 dark:bg-white/10 animate-pulse" />
-              <div className="h-3.5 rounded bg-black/10 dark:bg-white/10 animate-pulse flex-1" />
+              <div className="h-4 w-4 animate-pulse rounded bg-muted" />
+              <div className="h-3.5 flex-1 animate-pulse rounded bg-muted" />
             </div>
           ))
         ) : threads.length === 0 ? (
           <div className="text-center py-8 px-4">
-            <p className="text-xs text-black/30 dark:text-white/30">No threads yet</p>
+            <p className="text-xs text-muted-foreground">No threads yet</p>
             <button
               onClick={onCreateThread}
-              className="inline-flex items-center gap-1.5 text-xs text-black/15 dark:text-white/15 hover:text-black/65 dark:hover:text-white/65 mt-2"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-foreground"
             >
               <LineSquiggle size={12} />
               <span>New Thread</span>
@@ -332,7 +332,7 @@ export function ThreadList({
           <>
             {pinnedThreads.length > 0 && (
               <div className="mb-1">
-                <p className="text-[10px] font-semibold text-black/40 dark:text-white/40 uppercase tracking-wider px-2 py-1">
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Pinned
                 </p>
                 {pinnedThreads.map(thread => (
@@ -348,7 +348,7 @@ export function ThreadList({
             {regularThreads.length > 0 && (
               <div>
                 {pinnedThreads.length > 0 && (
-                  <p className="text-[10px] font-semibold text-black/40 dark:text-white/40 uppercase tracking-wider px-2 py-1">
+                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Threads
                   </p>
                 )}
@@ -364,7 +364,7 @@ export function ThreadList({
             )}
             <button
               onClick={onCreateThread}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors text-sm text-black/15 dark:text-white/15 hover:text-black/35 dark:hover:text-white/35 mt-1"
+              className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               <LineSquiggle size={14} className="shrink-0" />
               <span>New Thread</span>
@@ -375,14 +375,14 @@ export function ThreadList({
       ) : (
         <div className="flex-1 overflow-y-auto">
           {/* Settings header */}
-          <div className="flex items-center gap-2 px-3 py-3 border-b border-black/10 dark:border-white/10">
+          <div className="flex items-center gap-2 border-b border-border px-3 py-3">
             <button
               onClick={closeSettings}
               className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-7 w-7 shrink-0')}
             >
               <ChevronLeft size={16} />
             </button>
-            <h3 className="text-sm font-semibold text-black dark:text-white">Loom Settings</h3>
+            <h3 className="text-sm font-semibold text-foreground">Loom Settings</h3>
           </div>
 
           <div className="px-4 py-4 space-y-5">
@@ -399,13 +399,13 @@ export function ThreadList({
                 onClick={() => photoInputRef.current?.click()}
                 className="relative group"
               >
-                <div className="w-20 h-20 rounded-2xl bg-black/5 dark:bg-white/5 border border-dashed border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden transition-colors group-hover:border-black/20 dark:group-hover:border-white/20">
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-background transition-colors group-hover:border-muted-foreground/30">
                   {selectedPhotoPreview && selectedPhotoPreview !== '__remove__' ? (
-                    <img src={selectedPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={selectedPhotoPreview} alt="Preview" className="h-full w-full object-cover" />
                   ) : loom.icon_url && selectedPhotoPreview !== '__remove__' ? (
-                    <img src={loom.icon_url} alt={loom.name} className="w-full h-full object-cover" />
+                    <img src={loom.icon_url} alt={loom.name} className="h-full w-full object-cover" />
                   ) : (
-                    <LoomIcon size={28} className="text-black/30 dark:text-white/30" />
+                    <LoomIcon size={28} className="text-muted-foreground" />
                   )}
                 </div>
                 <div className="absolute inset-0 rounded-2xl flex items-center justify-center">
@@ -415,16 +415,16 @@ export function ThreadList({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => photoInputRef.current?.click()}
-                  className="text-xs text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white transition-colors"
+                  className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Upload
                 </button>
                 {(loom.icon_url || (selectedPhotoPreview && selectedPhotoPreview !== '__remove__')) && (
                   <>
-                    <span className="text-black/20 dark:text-white/20">|</span>
+                    <span className="text-muted-foreground/40">|</span>
                     <button
                       onClick={removePhoto}
-                      className="text-xs text-black/50 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      className="text-xs text-muted-foreground transition-colors hover:text-red-600 dark:hover:text-red-400"
                     >
                       Remove
                     </button>
@@ -435,7 +435,7 @@ export function ThreadList({
 
             {/* Name field */}
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Loom Name
               </label>
               <input
@@ -443,13 +443,13 @@ export function ThreadList({
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 placeholder="Give your Loom a name"
-                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/20 dark:focus:border-white/20 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-1 focus:ring-ring"
               />
             </div>
 
             {/* Description field */}
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-medium text-black/50 dark:text-white/50 uppercase tracking-wider">
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Description
               </label>
               <textarea
@@ -457,7 +457,7 @@ export function ThreadList({
                 onChange={(e) => setEditDescription(e.target.value)}
                 rows={3}
                 placeholder="What's this Loom about?"
-                className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-3 py-2 text-sm outline-none border border-black/10 dark:border-white/10 focus:border-black/20 dark:focus:border-white/20 text-black dark:text-white placeholder:text-black/25 dark:placeholder:text-white/25 resize-none"
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-1 focus:ring-ring"
               />
             </div>
 
@@ -551,8 +551,8 @@ function ThreadItem({
       className={cn(
         'group/thread-row flex items-center gap-0.5 rounded-md pr-1 text-sm transition-colors',
         selected
-          ? 'bg-black/10 text-black dark:bg-white/10 dark:text-white'
-          : 'text-black/60 hover:bg-black/[0.06] dark:text-white/60 dark:hover:bg-white/[0.06]',
+          ? 'bg-primary/10 text-foreground'
+          : 'text-muted-foreground hover:bg-muted',
         selected && 'font-medium',
       )}
     >
@@ -561,7 +561,7 @@ function ThreadItem({
         onClick={onSelect}
         className={cn(
           'flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none',
-          !selected && 'hover:text-black dark:hover:text-white',
+          !selected && 'hover:text-foreground',
         )}
       >
         {thread.category === 'voice' ? (
@@ -573,7 +573,7 @@ function ThreadItem({
         )}
         <span className="truncate">{thread.name}</span>
         {thread.is_pinned && (
-          <Pin size={10} className="shrink-0 text-black/30 dark:text-white/30" />
+          <Pin size={10} className="shrink-0 text-muted-foreground" />
         )}
       </button>
 
@@ -583,7 +583,7 @@ function ThreadItem({
             type="button"
             aria-label="Thread settings"
             className={cn(
-              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-black/35 dark:text-white/35 transition-opacity hover:text-black dark:hover:text-white',
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-opacity hover:text-foreground',
               'opacity-0 group-hover/thread-row:opacity-100 data-[state=open]:opacity-100',
             )}
             onClick={(e) => e.stopPropagation()}
@@ -597,9 +597,9 @@ function ThreadItem({
           sideOffset={8}
           className="w-auto border-0 bg-transparent p-0 shadow-none"
         >
-          <div className="w-72 rounded-lg border border-black/10 bg-white text-black shadow-xl dark:border-white/10 dark:bg-[#1a1a1a] dark:text-white">
-            <div className="border-b border-black/10 px-3 py-2.5 dark:border-white/10">
-              <p className="text-xs font-medium text-black/50 dark:text-white/50">Thread name</p>
+          <div className="w-72 rounded-lg border border-border bg-background text-foreground shadow-xl">
+            <div className="border-b border-border px-3 py-2.5">
+              <p className="text-xs font-medium text-muted-foreground">Thread name</p>
             </div>
             <div className="space-y-3 p-3">
               <div className="space-y-1">
@@ -611,11 +611,11 @@ function ThreadItem({
                     if (e.key === 'Enter') void handleSaveName()
                   }}
                   maxLength={THREAD_NAME_MAX_CHARS}
-                  className="w-full rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm outline-none placeholder:text-black/30 focus:border-black/20 dark:border-white/10 dark:bg-white/5 dark:placeholder:text-white/30 dark:focus:border-white/20"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring"
                   placeholder="channel-name"
                   autoFocus
                 />
-                <p className="text-right text-[11px] tabular-nums text-black/40 dark:text-white/40">
+                <p className="text-right text-[11px] tabular-nums text-muted-foreground">
                   {editName.length}/{THREAD_NAME_MAX_CHARS}
                 </p>
               </div>

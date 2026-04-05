@@ -42,7 +42,7 @@ export function DmMinimizedCallPillInner() {
 
   return (
     <DraggableMinimizedPillFrame>
-      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/90 backdrop-blur-xl pl-2 pr-1.5 py-1.5 shadow-2xl">
+      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-background backdrop-blur-xl pl-2 pr-1.5 py-1.5 shadow-2xl">
         <MinimizedCallVideoThumb />
         <button
           onClick={toggleMinimize}
@@ -55,7 +55,7 @@ export function DmMinimizedCallPillInner() {
             />
           </Avatar>
           <div className="flex flex-col gap-0.5 min-w-0 mr-1">
-            <span className="text-xs font-medium text-white truncate max-w-[100px]">
+            <span className="max-w-[100px] truncate text-xs font-medium text-foreground">
               {remoteUser?.name}
             </span>
             <div className="flex items-center gap-1.5">
@@ -69,7 +69,7 @@ export function DmMinimizedCallPillInner() {
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 rounded-full text-white/70 hover:text-white hover:bg-white/10"
+            className="h-7 w-7 rounded-full border border-transparent bg-background text-foreground/80 hover:border-border hover:bg-muted hover:text-foreground"
             onClick={toggleMinimize}
           >
             <Maximize2 className="h-3.5 w-3.5" />

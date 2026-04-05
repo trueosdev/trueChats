@@ -69,7 +69,7 @@ export function CallSpeakingAvatar({
             >
               <span
                 className={cn(
-                  "block rounded-full border border-white/50 animate-speak-ring-expand [animation-delay:550ms]",
+                  "block rounded-full border border-white/50 animate-speak-ring-expand",
                   preset.ring,
                 )}
               />
@@ -80,7 +80,7 @@ export function CallSpeakingAvatar({
             >
               <span
                 className={cn(
-                  "block rounded-full border border-white/35 animate-speak-ring-expand [animation-delay:1s]",
+                  "block rounded-full border border-white/35 animate-speak-ring-expand",
                   preset.ring,
                 )}
               />
@@ -90,7 +90,7 @@ export function CallSpeakingAvatar({
 
         <Avatar
           className={cn(
-            "relative z-10 shrink-0 border-2 transition-[box-shadow,border-color] duration-300",
+            "relative z-10 shrink-0 border-2 transition-[box-shadow,border-color] duration-2",
             preset.avatar,
             isSpeaking
               ? "border-white/95 shadow-[0_0_22px_rgba(0,0,0,0.32)]"
@@ -103,7 +103,7 @@ export function CallSpeakingAvatar({
       {showName ? (
         <p
           className={cn(
-            "max-w-[12rem] truncate text-center text-sm font-medium text-white/80",
+            "max-w-[12rem] truncate text-center text-sm font-medium text-foreground/80",
             nameClassName,
           )}
         >

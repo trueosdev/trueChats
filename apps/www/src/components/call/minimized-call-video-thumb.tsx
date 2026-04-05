@@ -24,7 +24,7 @@ export function MinimizedCallVideoThumb({
   return (
     <div
       className={cn(
-        "relative h-11 w-[4.75rem] shrink-0 overflow-hidden rounded-lg bg-black ring-1 ring-white/15",
+        "relative h-11 w-[4.75rem] shrink-0 overflow-hidden rounded-lg bg-background ring-1 ring-white/15",
         className,
       )}
     >

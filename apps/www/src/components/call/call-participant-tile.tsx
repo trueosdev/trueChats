@@ -119,7 +119,7 @@ export const CallParticipantTile = React.forwardRef<HTMLDivElement, CallParticip
                     />
                   )
                 )}
-                <div className="lk-participant-placeholder !bg-black/40">
+                <div className="lk-participant-placeholder !bg-background/50">
                   <CallSpeakingAvatar
                     participant={trackReference.participant}
                     avatarUrl={avatarUrl}

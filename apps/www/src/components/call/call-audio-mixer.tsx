@@ -171,7 +171,7 @@ function ParticipantMixerMenuContent({
   return (
     <ContextMenuContent
       className={cn(
-        "min-w-[15.5rem] max-w-[min(100vw-1.5rem,18rem)] gap-0 overflow-hidden border-border bg-popover p-0 text-popover-foreground",
+        "min-w-[15.5rem] max-w-[min(100vw-1.5rem,18rem)] gap-0 overflow-hidden border-border bg-background p-0 text-foreground",
         "rounded-md shadow-[0_4px_6px_-1px_rgb(0_0_0/0.08),0_2px_4px_-2px_rgb(0_0_0/0.06)]",
         "dark:shadow-[0_4px_6px_-1px_rgb(0_0_0/0.35),0_2px_4px_-2px_rgb(0_0_0/0.22)]",
         menuZClassName ?? "z-[500]",
@@ -195,11 +195,10 @@ function ParticipantMixerMenuContent({
           variant="ghost"
           size="icon"
           className={cn(
-            "h-11 w-11 shrink-0 rounded-full border-0 shadow-none",
-            "bg-black/[0.08] text-foreground hover:bg-black/[0.12] hover:text-foreground",
-            "dark:bg-white/10 dark:hover:bg-white/15",
+            "h-11 w-11 shrink-0 rounded-full border border-border bg-background shadow-none",
+            "text-foreground hover:bg-muted",
             muted &&
-              "bg-red-500/15 text-red-700 hover:bg-red-500/20 hover:text-red-800 dark:text-red-400 dark:hover:bg-red-500/25 dark:hover:text-red-300",
+              "border-red-500/30 bg-red-500/15 text-red-700 hover:bg-red-500/20 hover:text-red-800 dark:text-red-400 dark:hover:bg-red-500/25 dark:hover:text-red-300",
           )}
           aria-label={
             muted
@@ -238,10 +237,10 @@ function ParticipantMixerMenuContent({
             className={cn(
               "h-2 w-full min-w-0 cursor-pointer appearance-none rounded-full bg-transparent",
               "accent-primary",
-              "[&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-black/10 [&::-webkit-slider-runnable-track]:dark:bg-white/10",
-              "[&::-webkit-slider-thumb]:mt-[-5px] [&::-webkit-slider-thumb]:box-border [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-black/15 [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:dark:border-white/25 [&::-webkit-slider-thumb]:dark:bg-white",
-              "[&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:border-0 [&::-moz-range-track]:bg-black/10 [&::-moz-range-track]:dark:bg-white/10",
-              "[&::-moz-range-thumb]:box-border [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-black/15 [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:shadow-sm [&::-moz-range-thumb]:dark:border-white/25 [&::-moz-range-thumb]:dark:bg-white",
+              "[&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-black/20 dark:[&::-webkit-slider-runnable-track]:bg-white/25",
+              "[&::-webkit-slider-thumb]:mt-[-5px] [&::-webkit-slider-thumb]:box-border [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-border [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:shadow-sm",
+              "[&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:border-0 [&::-moz-range-track]:bg-black/20 dark:[&::-moz-range-track]:bg-white/25",
+              "[&::-moz-range-thumb]:box-border [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-border [&::-moz-range-thumb]:bg-foreground [&::-moz-range-thumb]:shadow-sm",
             )}
             onChange={(e) => {
               const v = Number(e.target.value) / 100;

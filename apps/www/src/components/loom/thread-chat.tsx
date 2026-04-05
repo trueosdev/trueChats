@@ -11,6 +11,7 @@ import '@/app/livekit-overrides.css'
 import { Track } from 'livekit-client'
 import { Button } from '@/components/ui/button'
 import { LiveKitLucideControlBar } from '@/components/call/livekit-lucide-control-bar'
+import { LocalCameraScreenSharePip } from '@/components/call/local-camera-screen-share-pip'
 import { useThreadCall } from '@/components/call/thread-call-provider'
 import { ExpandableChatHeader } from '@shadcn-chat/ui'
 import { ChatList } from '../chat/chat-list'
@@ -40,7 +41,7 @@ function ThreadPanelHeader({
   return (
     <ExpandableChatHeader className="shrink-0 border-none px-2 py-3 dark:border-white/10 sm:px-4">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
           {leadingIcon}
         </div>
         <div className="flex min-w-0 flex-1 flex-col text-left">
@@ -199,16 +200,23 @@ function CallGrid() {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="thread-call-main-stage relative min-h-0 flex-1 overflow-hidden bg-black">
-        {mainTrack ? (
+      {mainTrack ? (
+        <div className="thread-call-main-stage relative min-h-0 flex-1 overflow-hidden bg-background">
           <MixerParticipantTile
             trackRef={mainTrack}
             className="!h-full !min-h-0 !w-full !min-w-0"
             mixerMenuContentClassName="z-[600]"
           />
-        ) : null}
-      </div>
-      <ConferenceParticipantStrip mixerMenuContentClassName="z-[600]" />
+          <LocalCameraScreenSharePip
+            mainTrack={mainTrack}
+            mixerMenuContentClassName="z-[600]"
+          />
+        </div>
+      ) : null}
+      <ConferenceParticipantStrip
+        centered={!mainTrack}
+        mixerMenuContentClassName="z-[600]"
+      />
     </div>
   )
 }
@@ -365,7 +373,7 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center p-8">
         <p className="text-sm text-red-600 dark:text-red-400">
-          Voice/video calls are not configured. Set <code className="bg-black/5 dark:bg-white/5 px-1.5 py-0.5 rounded text-xs">NEXT_PUBLIC_LIVEKIT_URL</code> in your environment.
+          Voice/video calls are not configured. Set <code className="rounded bg-background px-1.5 py-0.5 text-xs ring-1 ring-border">NEXT_PUBLIC_LIVEKIT_URL</code> in your environment.
         </p>
       </div>
     )

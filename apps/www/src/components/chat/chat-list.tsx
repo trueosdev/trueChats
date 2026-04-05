@@ -207,7 +207,7 @@ export function ChatList({
   };
 
   return (
-    <div className="w-full overflow-y-hidden h-full flex flex-col">
+    <div className="flex h-full w-full flex-col overflow-y-hidden bg-background">
       <ChatMessageList>
         <AnimatePresence>
           {messages.map((message, index) => {
@@ -219,11 +219,11 @@ export function ChatList({
               <React.Fragment key={message.id}>
                 {dateSep && (
                   <div className="flex items-center gap-4 py-2">
-                    <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
-                    <span className="text-xs text-muted-foreground font-medium">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs font-medium text-muted-foreground">
                       {dateSep}
                     </span>
-                    <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
+                    <div className="h-px flex-1 bg-border" />
                   </div>
                 )}
                 <motion.div
@@ -238,7 +238,7 @@ export function ChatList({
                   }}
                 >
                   <div
-                    className={`group flex gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] px-1 rounded-md -mx-1 ${
+                    className={`-mx-1 group flex gap-3 rounded-md px-1 hover:bg-muted/60 ${
                       showHeader
                         ? "mt-4 py-0.5 first:mt-0"
                         : "mt-0.5 py-0 first:mt-0"
@@ -282,7 +282,7 @@ export function ChatList({
                               );
                               if (repliedMessage) {
                                 return (
-                                  <div className="mb-1 p-2 border-l border-black/10 dark:border-white/10 bg-muted/30 rounded text-sm">
+                                  <div className="mb-1 rounded border-l border-border bg-muted/40 p-2 text-sm">
                                     <div className="text-xs text-muted-foreground mb-0.5">
                                       {repliedMessage.name}
                                     </div>
@@ -305,17 +305,17 @@ export function ChatList({
                                   rel="noopener noreferrer"
                                   className="block group/img relative overflow-hidden rounded-md max-w-sm"
                                 >
-                                  <div className="relative bg-gradient-to-br from-black/3 to-black/5 dark:from-white/5 dark:to-white/10 p-1">
+                                  <div className="relative rounded-md bg-muted/50 p-1">
                                     <img
                                       src={message.attachment_url}
                                       alt={
                                         message.attachment_name ||
                                         "Image attachment"
                                       }
-                                      className="rounded-md w-full h-auto object-contain shadow-sm group-hover/img:scale-[1.01] transition-transform duration-100 ease-out"
+                                      className="h-auto w-full rounded-md object-contain shadow-sm transition-transform duration-100 ease-out group-hover/img:scale-[1.01]"
                                       style={{ maxHeight: "400px" }}
                                     />
-                                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors rounded-lg pointer-events-none" />
+                                    <div className="pointer-events-none absolute inset-0 rounded-lg bg-transparent transition-colors group-hover/img:bg-foreground/5" />
                                   </div>
                                 </a>
                               ) : (
@@ -323,22 +323,22 @@ export function ChatList({
                                   href={message.attachment_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-3 p-4 bg-gradient-to-r from-black/80 to-black/90 dark:from-white/5 dark:to-white/10 border border-black/10 dark:border-white/10 rounded-xl hover:shadow-md transition-all duration-200 group/file max-w-sm"
+                                  className="group/file flex max-w-sm items-center gap-3 rounded-xl border border-border bg-muted/50 p-4 transition-all duration-200 hover:bg-muted hover:shadow-md"
                                 >
-                                  <div className="flex items-center justify-center w-10 h-10 bg-black/70 dark:bg-white/10 rounded-lg shadow-sm group-hover/file:scale-110 transition-transform">
-                                    <Download className="h-5 w-5 text-white/90 dark:text-white/70" />
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background shadow-sm transition-transform group-hover/file:scale-110">
+                                    <Download className="h-5 w-5 text-foreground" />
                                   </div>
-                                  <div className="flex flex-col flex-1 min-w-0">
-                                    <span className="text-sm font-medium text-white truncate">
+                                  <div className="flex min-w-0 flex-1 flex-col">
+                                    <span className="truncate text-sm font-medium text-foreground">
                                       {message.attachment_name}
                                     </span>
-                                    <span className="text-xs text-white/70">
+                                    <span className="text-xs text-muted-foreground">
                                       {formatFileSize(
                                         message.attachment_size || 0,
                                       )}
                                     </span>
                                   </div>
-                                  <div className="text-white/50 group-hover/file:text-white/70 transition-colors">
+                                  <div className="text-muted-foreground transition-colors group-hover/file:text-foreground">
                                     <svg
                                       className="w-4 h-4"
                                       fill="none"
@@ -372,7 +372,7 @@ export function ChatList({
                                     handleCancelEdit();
                                   }
                                 }}
-                                className="w-full p-2 border border-black/10 dark:border-white/10 rounded bg-background text-foreground resize-none"
+                                className="w-full resize-none rounded border border-border bg-background p-2 text-foreground"
                                 autoFocus
                               />
                               <div className="flex gap-2 justify-end">

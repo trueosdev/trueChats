@@ -162,12 +162,12 @@
 }
 
 .livekit-lucide-call-controls .lk-button {
-  background-color: rgb(0 0 0 / 0.08);
-  color: rgb(0 0 0 / 0.85);
+  background-color: color-mix(in hsl, hsl(var(--foreground)) 8%, hsl(var(--background)));
+  color: hsl(var(--foreground));
 }
 
 .livekit-lucide-call-controls .lk-button:hover:not(:disabled) {
-  background-color: rgb(0 0 0 / 0.12);
+  background-color: color-mix(in hsl, hsl(var(--foreground)) 14%, hsl(var(--background)));
 }
 
 .livekit-lucide-call-controls .lk-button[data-lk-source="microphone"][data-lk-enabled="false"],
@@ -183,13 +183,13 @@
 
 .dark .livekit-lucide-call-controls .lk-button,
 .livekit-lucide-call-controls--dm .lk-button {
-  background-color: rgb(255 255 255 / 0.1);
-  color: rgb(255 255 255 / 0.9);
+  background-color: color-mix(in hsl, hsl(var(--foreground)) 10%, hsl(var(--background)));
+  color: hsl(var(--foreground));
 }
 
 .dark .livekit-lucide-call-controls .lk-button:hover:not(:disabled),
 .livekit-lucide-call-controls--dm .lk-button:hover:not(:disabled) {
-  background-color: rgb(255 255 255 / 0.15);
+  background-color: color-mix(in hsl, hsl(var(--foreground)) 16%, hsl(var(--background)));
 }
 
 .dark .livekit-lucide-call-controls .lk-button[data-lk-source="microphone"][data-lk-enabled="false"],

@@ -39,7 +39,7 @@ function useRemoteMicEnergy(): number {
       source = ctx.createMediaStreamSource(stream);
       analyser = ctx.createAnalyser();
       analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.72;
+      analyser.smoothingTimeConstant = 0.35;
       analyser.minDecibels = -85;
       analyser.maxDecibels = -25;
 
@@ -95,10 +95,10 @@ function useRemoteMicEnergy(): number {
       for (let i = 0; i < bufferLength; i++) sum += data[i] ?? 0;
       const avg = sum / bufferLength / 255;
       const instant = Math.min(1, Math.pow(avg, 0.65) * 3.2);
-      smooth = smooth * 0.72 + instant * 0.28;
+      smooth = smooth * 0.45 + instant * 0.55;
 
       const now = performance.now();
-      if (now - lastSet >= 45) {
+      if (now - lastSet >= 16) {
         lastSet = now;
         setEnergy(smooth);
       }
@@ -132,7 +132,7 @@ export function RemoteMicWaveform({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-block shrink-0 rounded-full bg-white shadow-[0_0_10px_rgba(0,0,0,0.55)]",
+        "inline-block shrink-0 rounded-full bg-foreground shadow-[0_0_10px_rgba(0,0,0,0.35)] dark:shadow-[0_0_10px_rgba(255,255,255,0.12)]",
         className,
       )}
       style={{
@@ -140,7 +140,7 @@ export function RemoteMicWaveform({ className }: { className?: string }) {
         height: "0.35rem",
         transform: `scale(${scale})`,
         opacity,
-        transition: "transform 55ms ease-out, opacity 55ms ease-out",
+        transition: "transform 20ms linear, opacity 20ms linear",
       }}
       aria-hidden
     />

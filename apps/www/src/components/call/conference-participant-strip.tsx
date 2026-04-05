@@ -36,13 +36,17 @@ function useOrderedCallParticipants(): Participant[] {
 
 /**
  * Horizontal row of speaking avatars (no video tiles). For use inside LiveKitRoom.
+ * Use `centered` when there is no camera/screen share so avatars sit in the middle of the call area.
  */
 export function ConferenceParticipantStrip({
   className,
   mixerMenuContentClassName,
+  centered = false,
 }: {
   className?: string;
   mixerMenuContentClassName?: string;
+  /** Fills remaining height and centers the avatar row (audio-only / no main video). */
+  centered?: boolean;
 }) {
   const { user } = useAuth();
   const participants = useOrderedCallParticipants();
@@ -51,46 +55,56 @@ export function ConferenceParticipantStrip({
       ? user.user_metadata.avatar_url
       : null;
 
+  const cells = participants.map((p) => {
+    const displayName = participantDisplayName(p);
+    const avatarUrl = p.isLocal
+      ? localAvatarFromProfile
+      : avatarUrlFromParticipantMetadata(p.metadata);
+
+    const avatar = (
+      <CallSpeakingAvatar
+        participant={p}
+        avatarUrl={avatarUrl}
+        alt={displayName}
+        size="compact"
+        showName={displayName}
+            nameClassName="text-foreground/85"
+      />
+    );
+
+    return (
+      <div key={p.identity} className="flex flex-col items-center">
+        {p.isLocal ? (
+          avatar
+        ) : (
+          <RemoteParticipantMixerBubble
+            identity={p.identity}
+            displayName={displayName}
+            menuZClassName={mixerMenuContentClassName}
+          >
+            {avatar}
+          </RemoteParticipantMixerBubble>
+        )}
+      </div>
+    );
+  });
+
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-wrap items-end justify-center gap-6 border-t border-white/10 bg-black/50 px-4 py-4",
+        centered
+          ? "flex min-h-0 flex-1 flex-col items-center justify-center bg-background px-4 py-8"
+          : "flex shrink-0 flex-wrap items-end justify-center gap-6 border-t border-white/10 bg-background px-4 py-4",
         className,
       )}
     >
-      {participants.map((p) => {
-        const displayName = participantDisplayName(p);
-        const avatarUrl = p.isLocal
-          ? localAvatarFromProfile
-          : avatarUrlFromParticipantMetadata(p.metadata);
-
-        const avatar = (
-          <CallSpeakingAvatar
-            participant={p}
-            avatarUrl={avatarUrl}
-            alt={displayName}
-            size="compact"
-            showName={displayName}
-            nameClassName="text-white/85"
-          />
-        );
-
-        return (
-          <div key={p.identity} className="flex flex-col items-center">
-            {p.isLocal ? (
-              avatar
-            ) : (
-              <RemoteParticipantMixerBubble
-                identity={p.identity}
-                displayName={displayName}
-                menuZClassName={mixerMenuContentClassName}
-              >
-                {avatar}
-              </RemoteParticipantMixerBubble>
-            )}
-          </div>
-        );
-      })}
+      {centered ? (
+        <div className="flex flex-wrap items-center justify-center gap-6">
+          {cells}
+        </div>
+      ) : (
+        cells
+      )}
     </div>
   );
 }

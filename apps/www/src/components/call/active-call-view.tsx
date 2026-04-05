@@ -28,6 +28,7 @@ import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
 import { LiveKitUiFeatureProvider } from "./livekit-feature-context";
 import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
 import { DmMinimizedCallPillInner } from "./minimized-call-pill";
+import { LocalCameraScreenSharePip } from "./local-camera-screen-share-pip";
 import { useAuth } from "@/hooks/useAuth";
 import { getAvatarUrl } from "@/lib/utils";
 
@@ -66,7 +67,7 @@ function CallTimer() {
   const ss = String(elapsed % 60).padStart(2, "0");
 
   return (
-    <span className="tabular-nums text-sm text-white/60">
+    <span className="tabular-nums text-sm text-muted-foreground">
       {mm}:{ss}
     </span>
   );
@@ -86,7 +87,7 @@ function AudioOnlyView() {
   const localAvatar = getAvatarUrl(user?.user_metadata?.avatar_url);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 bg-gradient-to-b from-black/90 to-black">
+    <div className="flex h-full flex-col items-center justify-center gap-6 bg-background">
       <div className="flex items-center gap-10">
         <CallSpeakingAvatar
           participant={localParticipant}
@@ -110,12 +111,12 @@ function AudioOnlyView() {
           </RemoteParticipantMixerBubble>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <div className="h-24 w-24 rounded-full ring-1 ring-white/10 bg-white/5 flex items-center justify-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-border bg-background">
               <div className="flex items-end gap-[3px] h-4">
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
-                    className="w-[3px] rounded-full bg-white/20"
+                    className="w-[3px] rounded-full bg-foreground/25"
                     style={{
                       animation: `waveform 1.8s ease-in-out ${i * 0.2}s infinite`,
                     }}
@@ -123,7 +124,7 @@ function AudioOnlyView() {
                 ))}
               </div>
             </div>
-            <p className="text-sm text-white/40">Waiting for {remoteUser?.name}...</p>
+            <p className="text-sm text-muted-foreground">Waiting for {remoteUser?.name}...</p>
           </div>
         )}
       </div>
@@ -135,7 +136,7 @@ function AudioOnlyView() {
         <Button
           size="icon"
           variant="ghost"
-          className="h-10 w-10 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white"
+          className="h-10 w-10 rounded-full border border-white/15 bg-background text-foreground hover:bg-muted hover:text-foreground"
           onClick={toggleMinimize}
         >
           <Minimize2 className="h-4 w-4" />
@@ -164,28 +165,36 @@ function VideoView() {
   const { hangUp, toggleMinimize } = useCall();
 
   const mainTrack = useMemo(() => pickDmMainVideoTrack(tracks), [tracks]);
+  const hasMainVideo = mainTrack != null;
 
   return (
-    <div className="flex h-full flex-col bg-black">
-      <div className="thread-call-main-stage relative min-h-0 flex-1 overflow-hidden bg-black">
-        {mainTrack ? (
+    <div className="flex h-full flex-col bg-background">
+      {hasMainVideo ? (
+        <div className="thread-call-main-stage relative min-h-0 flex-1 overflow-hidden bg-background">
           <MixerParticipantTile
             trackRef={mainTrack}
             className="!h-full !min-h-0 !w-full !min-w-0"
             mixerMenuContentClassName="z-[600]"
           />
-        ) : null}
-      </div>
+          <LocalCameraScreenSharePip
+            mainTrack={mainTrack}
+            mixerMenuContentClassName="z-[600]"
+          />
+        </div>
+      ) : null}
       <ConferenceParticipantStrip
-        className="border-white/15 bg-black/70"
+        centered={!hasMainVideo}
+        className={
+          hasMainVideo ? "border-white/15 bg-background/70" : undefined
+        }
         mixerMenuContentClassName="z-[600]"
       />
-      <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex shrink-0 items-center justify-center gap-3 overflow-visible py-4 bg-black/80 backdrop-blur-sm">
+      <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex shrink-0 items-center justify-center gap-3 overflow-visible py-4 bg-background/85 backdrop-blur-sm">
         <LiveKitLucideControlBar />
         <Button
           size="icon"
           variant="ghost"
-          className="h-10 w-10 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white"
+          className="h-10 w-10 rounded-full border border-white/15 bg-background text-foreground hover:bg-muted hover:text-foreground"
           onClick={toggleMinimize}
         >
           <Minimize2 className="h-4 w-4" />
@@ -222,7 +231,7 @@ export function ActiveCallView() {
       className={
         isMinimized
           ? "contents"
-          : "fixed inset-0 z-[200] flex h-full flex-col bg-black animate-in fade-in duration-200"
+          : "fixed inset-0 z-[200] flex h-full flex-col bg-background animate-in fade-in duration-200"
       }
     >
       <LiveKitUiFeatureProvider>

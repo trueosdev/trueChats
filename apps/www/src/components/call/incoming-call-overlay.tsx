@@ -13,7 +13,7 @@ export function IncomingCallOverlay() {
 
   return (
     <div className="fixed top-4 right-4 z-[200] animate-in slide-in-from-top-4 fade-in duration-300">
-      <div className="flex items-center gap-3 rounded-2xl border border-black/10 dark:border-white/10 bg-background/95 backdrop-blur-xl px-4 py-3 shadow-2xl min-w-[18rem]">
+      <div className="flex min-w-[18rem] items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 shadow-2xl backdrop-blur-xl">
         <div className="relative">
           <Avatar className="h-10 w-10 shrink-0">
             <ThemeAvatarImage

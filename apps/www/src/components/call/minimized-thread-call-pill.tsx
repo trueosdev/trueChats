@@ -20,7 +20,7 @@ function PillTimer() {
   const ss = String(elapsed % 60).padStart(2, "0");
 
   return (
-    <span className="tabular-nums text-xs text-white font-medium">
+    <span className="tabular-nums text-xs font-medium text-foreground">
       {mm}:{ss}
     </span>
   );
@@ -45,17 +45,17 @@ export function ThreadMinimizedPillContent() {
 
   return (
     <DraggableMinimizedPillFrame>
-      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/90 backdrop-blur-xl pl-2 pr-1.5 py-1.5 shadow-2xl">
+      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-background backdrop-blur-xl pl-2 pr-1.5 py-1.5 shadow-2xl">
         <MinimizedCallVideoThumb />
         <button
           onClick={navigateToThread}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-            <LineSquiggle className="h-3.5 w-3.5 text-white" />
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-background">
+            <LineSquiggle className="h-3.5 w-3.5 text-foreground" />
           </div>
           <div className="flex flex-col gap-0.5 min-w-0 mr-1">
-            <span className="text-xs font-medium text-white truncate max-w-[100px]">
+            <span className="max-w-[100px] truncate text-xs font-medium text-foreground">
               {threadName}
             </span>
             <PillTimer />
@@ -66,7 +66,7 @@ export function ThreadMinimizedPillContent() {
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 rounded-full text-white/70 hover:text-white hover:bg-white/10"
+            className="h-7 w-7 rounded-full border border-transparent bg-background text-foreground/80 hover:border-border hover:bg-muted hover:text-foreground"
             onClick={navigateToThread}
           >
             <Maximize2 className="h-3.5 w-3.5" />
