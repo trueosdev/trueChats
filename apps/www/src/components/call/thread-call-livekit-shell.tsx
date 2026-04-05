@@ -7,6 +7,7 @@ import {
   PerParticipantRoomAudioRenderer,
 } from "@/components/call/call-audio-mixer";
 import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "@/components/call/livekit-room-media-defaults";
+import { LiveKitUiFeatureProvider } from "@/components/call/livekit-feature-context";
 import { EnsureDefaultMediaDevices } from "@/components/call/ensure-default-media-devices";
 import { useThreadCall } from "@/components/call/thread-call-provider";
 import { ThreadMinimizedPillContent } from "@/components/call/minimized-thread-call-pill";
@@ -44,12 +45,14 @@ export function ThreadCallLiveKitShell({ children }: { children: ReactNode }) {
       data-lk-theme="default"
       className="contents"
     >
-      <EnsureDefaultMediaDevices video={false} />
-      <CallAudioMixerProvider>
-        <PerParticipantRoomAudioRenderer />
-        {children}
-        {isMinimized ? <ThreadMinimizedPillContent /> : null}
-      </CallAudioMixerProvider>
+      <LiveKitUiFeatureProvider>
+        <EnsureDefaultMediaDevices video={false} />
+        <CallAudioMixerProvider>
+          <PerParticipantRoomAudioRenderer />
+          {children}
+          {isMinimized ? <ThreadMinimizedPillContent /> : null}
+        </CallAudioMixerProvider>
+      </LiveKitUiFeatureProvider>
     </LiveKitRoom>
   );
 }

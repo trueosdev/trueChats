@@ -221,6 +221,12 @@
   display: none !important;
 }
 
+/* Screen share: never cover the video with the camera-style avatar placeholder */
+.thread-call-main-stage .lk-participant-tile[data-lk-source="screen_share"] .lk-participant-placeholder {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
 .thread-call-main-stage .lk-participant-tile[data-lk-source="screen_share"] video,
 .thread-call-main-stage .lk-participant-tile[data-lk-source="screen_share"] .lk-participant-media-video {
   object-fit: contain;

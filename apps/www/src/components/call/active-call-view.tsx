@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useCall } from "./call-provider";
 import { CallSpeakingAvatar } from "./call-speaking-avatar";
 import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
+import { LiveKitUiFeatureProvider } from "./livekit-feature-context";
 import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
 import { DmMinimizedCallPillInner } from "./minimized-call-pill";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,8 +40,7 @@ function pickDmMainVideoTrack(
       (t) =>
         t.source === Track.Source.ScreenShare &&
         t.participant.isLocal === isLocal &&
-        t.publication.isSubscribed &&
-        !!t.publication.track,
+        !t.publication.isMuted,
     );
   const liveCam = (isLocal: boolean) =>
     refs.find(
@@ -225,17 +225,19 @@ export function ActiveCallView() {
           : "fixed inset-0 z-[200] flex h-full flex-col bg-black animate-in fade-in duration-200"
       }
     >
-      <EnsureDefaultMediaDevices video={callType === "video"} />
-      <CallAudioMixerProvider>
-        <PerParticipantRoomAudioRenderer />
-        {isMinimized ? (
-          <DmMinimizedCallPillInner />
-        ) : callType === "video" ? (
-          <VideoView />
-        ) : (
-          <AudioOnlyView />
-        )}
-      </CallAudioMixerProvider>
+      <LiveKitUiFeatureProvider>
+        <EnsureDefaultMediaDevices video={callType === "video"} />
+        <CallAudioMixerProvider>
+          <PerParticipantRoomAudioRenderer />
+          {isMinimized ? (
+            <DmMinimizedCallPillInner />
+          ) : callType === "video" ? (
+            <VideoView />
+          ) : (
+            <AudioOnlyView />
+          )}
+        </CallAudioMixerProvider>
+      </LiveKitUiFeatureProvider>
     </LiveKitRoom>
   );
 }

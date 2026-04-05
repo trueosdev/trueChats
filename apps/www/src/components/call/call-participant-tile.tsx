@@ -16,7 +16,6 @@ import {
   TrackRefContextIfNeeded,
   VideoTrack,
   useEnsureTrackRef,
-  useFeatureContext,
   useIsEncrypted,
   useMaybeLayoutContext,
   useParticipantTile,
@@ -69,8 +68,6 @@ export const CallParticipantTile = React.forwardRef<HTMLDivElement, CallParticip
     });
     const isEncrypted = useIsEncrypted(trackReference.participant);
     const layoutContext = useMaybeLayoutContext();
-    const autoManageSubscription = useFeatureContext()?.autoSubscription;
-
     const avatarFromMeta = avatarUrlFromParticipantMetadata(trackReference.participant.metadata);
     const localAvatar =
       typeof user?.user_metadata?.avatar_url === "string"
@@ -112,7 +109,7 @@ export const CallParticipantTile = React.forwardRef<HTMLDivElement, CallParticip
                   <VideoTrack
                     trackRef={trackReference}
                     onSubscriptionStatusChanged={handleSubscribe}
-                    manageSubscription={autoManageSubscription}
+                    manageSubscription={false}
                   />
                 ) : (
                   isTrackReference(trackReference) && (

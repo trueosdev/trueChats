@@ -181,9 +181,7 @@ function CallGrid() {
       .filter(isTrackReference)
       .find(
         (t) =>
-          t.source === Track.Source.ScreenShare &&
-          t.publication.isSubscribed &&
-          !!t.publication.track,
+          t.source === Track.Source.ScreenShare && !t.publication.isMuted,
       )
     if (liveScreen) return liveScreen
 
