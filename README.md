@@ -21,8 +21,7 @@ A modern, real-time chat application built with Next.js, Supabase, and reusable 
 ```
 trueChats/
 ├── apps/
-│   ├── www/           # Main chat application
-│   └── docs/          # Component documentation (Nextra)
+│   └── www/           # Main chat application
 ├── packages/
 │   ├── ui/            # @shadcn-chat/ui - Reusable chat components
 │   └── cli/           # CLI tool for adding components
@@ -44,6 +43,5 @@ trueChats/
 
 ## 🔗 Links
 
-- [Documentation](apps/docs) - Component documentation and examples
 - [Supabase Docs](https://supabase.com/docs) - Learn more about Supabase
 - [Next.js Docs](https://nextjs.org/docs) - Learn more about Next.js
