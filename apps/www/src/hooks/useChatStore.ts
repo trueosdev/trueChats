@@ -1,4 +1,11 @@
-import { Message, ConversationWithUser, Loom, Thread, ThreadMessage } from "@/app/data";
+import {
+  Message,
+  ConversationWithUser,
+  Loom,
+  Thread,
+  ThreadFolder,
+  ThreadMessage,
+} from "@/app/data";
 import { create } from "zustand";
 
 type ViewMode = 'dms' | 'looms';
@@ -17,6 +24,7 @@ interface State {
   looms: Loom[];
   selectedLoomId: string | null;
   threads: Thread[];
+  threadFolders: ThreadFolder[];
   selectedThreadId: string | null;
   threadMessages: ThreadMessage[];
   loomLoading: boolean;
@@ -51,6 +59,11 @@ interface Actions {
   setThreads: (threads: Thread[]) => void;
   addThread: (thread: Thread) => void;
   updateThread: (threadId: string, updates: Partial<Thread>) => void;
+  removeThread: (threadId: string) => void;
+  setThreadFolders: (folders: ThreadFolder[]) => void;
+  addThreadFolder: (folder: ThreadFolder) => void;
+  updateThreadFolder: (folderId: string, updates: Partial<ThreadFolder>) => void;
+  removeThreadFolder: (folderId: string) => void;
   setSelectedThreadId: (id: string | null) => void;
   setThreadMessages: (messages: ThreadMessage[]) => void;
   addThreadMessage: (message: ThreadMessage) => void;
@@ -72,6 +85,7 @@ const useChatStore = create<State & Actions>()((set) => ({
   looms: [],
   selectedLoomId: null,
   threads: [],
+  threadFolders: [],
   selectedThreadId: null,
   threadMessages: [],
   loomLoading: false,
@@ -141,7 +155,13 @@ const useChatStore = create<State & Actions>()((set) => ({
       l.id === loomId ? { ...l, ...updates } : l
     ),
   })),
-  setSelectedLoomId: (id) => set({ selectedLoomId: id, selectedThreadId: null, threadMessages: [] }),
+  setSelectedLoomId: (id) =>
+    set({
+      selectedLoomId: id,
+      selectedThreadId: null,
+      threadMessages: [],
+      threadFolders: [],
+    }),
   setThreads: (threads) => set({ threads }),
   addThread: (thread) => set((state) => {
     const exists = state.threads.some(t => t.id === thread.id);
@@ -151,6 +171,26 @@ const useChatStore = create<State & Actions>()((set) => ({
   updateThread: (threadId, updates) => set((state) => ({
     threads: state.threads.map((t) =>
       t.id === threadId ? { ...t, ...updates } : t
+    ),
+  })),
+  removeThread: (threadId) => set((state) => ({
+    threads: state.threads.filter((t) => t.id !== threadId),
+  })),
+  setThreadFolders: (threadFolders) => set({ threadFolders }),
+  addThreadFolder: (folder) => set((state) => {
+    const exists = state.threadFolders.some((f) => f.id === folder.id);
+    if (exists) return state;
+    return { threadFolders: [...state.threadFolders, folder].sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at)) };
+  }),
+  updateThreadFolder: (folderId, updates) => set((state) => ({
+    threadFolders: state.threadFolders
+      .map((f) => (f.id === folderId ? { ...f, ...updates } : f))
+      .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at)),
+  })),
+  removeThreadFolder: (folderId) => set((state) => ({
+    threadFolders: state.threadFolders.filter((f) => f.id !== folderId),
+    threads: state.threads.map((t) =>
+      t.folder_id === folderId ? { ...t, folder_id: null } : t
     ),
   })),
   setSelectedThreadId: (id) => set({ selectedThreadId: id, threadMessages: [] }),

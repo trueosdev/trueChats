@@ -1,7 +1,22 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
-import { Lock, Users, Pin, LineSquiggle, Settings, ChevronLeft, Camera, Check, Loader2, Video } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Lock,
+  Users,
+  Pin,
+  LineSquiggle,
+  Settings,
+  ChevronLeft,
+  Camera,
+  Check,
+  Loader2,
+  Video,
+  ChevronRight,
+  FolderPlus,
+  MoreHorizontal,
+  Plus,
+} from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '../ui/button'
@@ -23,24 +38,41 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { useAuth } from '@/hooks/useAuth'
 import useChatStore from '@/hooks/useChatStore'
 import { updateLoom, uploadLoomIcon } from '@/lib/services/looms'
-import { updateThread } from '@/lib/services/threads'
-import type { Loom, Thread } from '@/app/data'
-import { THREAD_NAME_MAX_CHARS } from '@/lib/thread-field-limits'
+import {
+  createThreadFolder,
+  deleteThreadFolder,
+  updateThread,
+  updateThreadFolder,
+} from '@/lib/services/threads'
+import type { Loom, Thread, ThreadFolder } from '@/app/data'
+import {
+  THREAD_FOLDER_NAME_MAX_CHARS,
+  THREAD_NAME_MAX_CHARS,
+} from '@/lib/thread-field-limits'
 
 interface ThreadListProps {
   loom: Loom
   threads: Thread[]
+  threadFolders: ThreadFolder[]
   selectedThreadId: string | null
   onThreadSelect: (threadId: string) => void
-  onCreateThread: () => void
+  /** Optional folder to create the new thread inside */
+  onCreateThread: (folderId?: string | null) => void
   onShowMembers: () => void
   loading?: boolean
   isCollapsed?: boolean
 }
 
+const UNCATEGORIZED_FOLDER_KEY = '__uncategorized__'
+
+function folderOpenStorageKey(loomId: string) {
+  return `tc-folder-open:${loomId}`
+}
+
 export function ThreadList({
   loom,
   threads,
+  threadFolders,
   selectedThreadId,
   onThreadSelect,
   onCreateThread,
@@ -49,6 +81,9 @@ export function ThreadList({
   isCollapsed = false,
 }: ThreadListProps) {
   const { user } = useAuth()
+  const addThreadFolder = useChatStore((s) => s.addThreadFolder)
+  const updateThreadFolderStore = useChatStore((s) => s.updateThreadFolder)
+  const removeThreadFolderStore = useChatStore((s) => s.removeThreadFolder)
   const [sidebarView, setSidebarView] = useState<'threads' | 'settings'>('threads')
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
@@ -58,9 +93,111 @@ export function ThreadList({
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const [folderOpenMap, setFolderOpenMap] = useState<Record<string, boolean>>({})
 
-  const pinnedThreads = threads.filter(t => t.is_pinned)
-  const regularThreads = threads.filter(t => !t.is_pinned)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(folderOpenStorageKey(loom.id))
+      setFolderOpenMap(raw ? (JSON.parse(raw) as Record<string, boolean>) : {})
+    } catch {
+      setFolderOpenMap({})
+    }
+  }, [loom.id])
+
+  const isFolderExpanded = useCallback(
+    (id: string) => folderOpenMap[id] !== false,
+    [folderOpenMap],
+  )
+
+  const toggleFolderOpen = useCallback(
+    (id: string) => {
+      setFolderOpenMap((prev) => {
+        const wasOpen = prev[id] !== false
+        const next = { ...prev, [id]: !wasOpen }
+        try {
+          localStorage.setItem(
+            folderOpenStorageKey(loom.id),
+            JSON.stringify(next),
+          )
+        } catch {
+          /* ignore */
+        }
+        return next
+      })
+    },
+    [loom.id],
+  )
+
+  const sortedFolders = useMemo(
+    () =>
+      [...threadFolders].sort(
+        (a, b) =>
+          a.position - b.position || a.created_at.localeCompare(b.created_at),
+      ),
+    [threadFolders],
+  )
+
+  const pinnedThreads = threads.filter((t) => t.is_pinned)
+  const regularThreads = threads.filter((t) => !t.is_pinned)
+
+  const collapsedThreadOrder = useMemo(() => {
+    const out: Thread[] = [...pinnedThreads]
+    for (const f of sortedFolders) {
+      out.push(
+        ...regularThreads
+          .filter((t) => t.folder_id === f.id)
+          .sort(
+            (a, b) =>
+              new Date(a.created_at).getTime() -
+              new Date(b.created_at).getTime(),
+          ),
+      )
+    }
+    out.push(
+      ...regularThreads
+        .filter((t) => !t.folder_id)
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime(),
+        ),
+    )
+    return out
+  }, [pinnedThreads, regularThreads, sortedFolders])
+
+  const handleNewFolder = async () => {
+    if (!user) return
+    const name = window.prompt('Folder name')
+    const trimmed = name?.trim().slice(0, THREAD_FOLDER_NAME_MAX_CHARS)
+    if (!trimmed) return
+    const folder = await createThreadFolder({
+      loomId: loom.id,
+      name: trimmed,
+      createdBy: String(user.id),
+    })
+    if (folder) addThreadFolder(folder)
+  }
+
+  const handleRenameFolder = async (folder: ThreadFolder) => {
+    const name = window.prompt('Rename folder', folder.name)
+    const trimmed = name?.trim().slice(0, THREAD_FOLDER_NAME_MAX_CHARS)
+    if (!trimmed || trimmed === folder.name) return
+    const ok = await updateThreadFolder(folder.id, { name: trimmed })
+    if (ok) updateThreadFolderStore(folder.id, { name: trimmed })
+  }
+
+  const handleDeleteFolder = async (folder: ThreadFolder) => {
+    if (
+      !window.confirm(
+        `Delete folder "${folder.name}"? Threads inside will move to the uncategorized list.`,
+      )
+    ) {
+      return
+    }
+    const ok = await deleteThreadFolder(folder.id)
+    if (ok) removeThreadFolderStore(folder.id)
+  }
+
   const LoomIcon = (() => {
     const iconName = loom.icon_name || 'Users'
     const Icon = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ size?: number; className?: string }>
@@ -206,7 +343,7 @@ export function ThreadList({
               <div key={i} className="h-8 w-8 animate-pulse rounded bg-muted" />
             ))
           ) : (
-            [...pinnedThreads, ...regularThreads].map(thread => (
+            collapsedThreadOrder.map((thread) => (
               <TooltipProvider key={thread.id}>
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
@@ -215,10 +352,16 @@ export function ThreadList({
                       className={cn(
                         buttonVariants({ variant: "ghost", size: "icon" }),
                         "h-8 w-8 shrink-0",
-                        selectedThreadId === thread.id && "bg-primary/10"
+                        selectedThreadId === thread.id && "bg-primary/10",
                       )}
                     >
-                      {thread.category === 'voice' ? <Video size={14} /> : thread.type === 'private' ? <Lock size={14} /> : <LineSquiggle size={14} />}
+                      {thread.category === "voice" ? (
+                        <Video size={14} />
+                      ) : thread.type === "private" ? (
+                        <Lock size={14} />
+                      ) : (
+                        <LineSquiggle size={14} />
+                      )}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right">{thread.name}</TooltipContent>
@@ -249,10 +392,11 @@ export function ThreadList({
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={onCreateThread}
+                  type="button"
+                  onClick={() => onCreateThread(null)}
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "icon" }),
-                    "h-8 w-8"
+                    "h-8 w-8",
                   )}
                 >
                   <LineSquiggle size={14} />
@@ -321,7 +465,8 @@ export function ThreadList({
           <div className="text-center py-8 px-4">
             <p className="text-xs text-muted-foreground">No threads yet</p>
             <button
-              onClick={onCreateThread}
+              type="button"
+              onClick={() => onCreateThread(null)}
               className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-foreground"
             >
               <LineSquiggle size={12} />
@@ -335,36 +480,163 @@ export function ThreadList({
                 <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Pinned
                 </p>
-                {pinnedThreads.map(thread => (
+                {pinnedThreads.map((thread) => (
                   <ThreadItem
                     key={thread.id}
                     thread={thread}
+                    threadFolders={sortedFolders}
                     selected={selectedThreadId === thread.id}
                     onSelect={() => onThreadSelect(thread.id)}
                   />
                 ))}
               </div>
             )}
-            {regularThreads.length > 0 && (
-              <div>
-                {pinnedThreads.length > 0 && (
-                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Threads
-                  </p>
-                )}
-                {regularThreads.map(thread => (
-                  <ThreadItem
-                    key={thread.id}
-                    thread={thread}
-                    selected={selectedThreadId === thread.id}
-                    onSelect={() => onThreadSelect(thread.id)}
-                  />
-                ))}
-              </div>
-            )}
+
+            {sortedFolders.map((folder) => {
+              const inFolder = regularThreads.filter((t) => t.folder_id === folder.id)
+              const open = isFolderExpanded(folder.id)
+              return (
+                <div key={folder.id} className="mb-0.5">
+                  <div className="flex items-center gap-0.5 pr-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleFolderOpen(folder.id)}
+                      className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-0.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      <ChevronRight
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 transition-transform",
+                          open && "rotate-90",
+                        )}
+                        aria-hidden
+                      />
+                      <span className="truncate">{folder.name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onCreateThread(folder.id)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      title="New thread in folder"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          aria-label="Folder options"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem
+                          onClick={() => void handleRenameFolder(folder)}
+                        >
+                          Rename folder
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => void handleDeleteFolder(folder)}
+                        >
+                          Delete folder
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  {open && (
+                    <div className="mt-0.5 space-y-0.5 pl-0.5">
+                      {inFolder.length === 0 ? (
+                        <p className="px-2 py-1 text-[11px] text-muted-foreground/80">
+                          Empty — use + to add a thread
+                        </p>
+                      ) : (
+                        inFolder.map((thread) => (
+                          <ThreadItem
+                            key={thread.id}
+                            thread={thread}
+                            threadFolders={sortedFolders}
+                            selected={selectedThreadId === thread.id}
+                            onSelect={() => onThreadSelect(thread.id)}
+                          />
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {(() => {
+              const uncategorized = regularThreads.filter((t) => !t.folder_id)
+              if (uncategorized.length === 0) return null
+              if (sortedFolders.length > 0) {
+                const open = isFolderExpanded(UNCATEGORIZED_FOLDER_KEY)
+                return (
+                  <div className="mb-0.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleFolderOpen(UNCATEGORIZED_FOLDER_KEY)}
+                      className="flex w-full items-center gap-1 rounded-md px-1 py-0.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      <ChevronRight
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 transition-transform",
+                          open && "rotate-90",
+                        )}
+                        aria-hidden
+                      />
+                      <span>Threads</span>
+                    </button>
+                    {open && (
+                      <div className="mt-0.5 space-y-0.5 pl-0.5">
+                        {uncategorized.map((thread) => (
+                          <ThreadItem
+                            key={thread.id}
+                            thread={thread}
+                            threadFolders={sortedFolders}
+                            selected={selectedThreadId === thread.id}
+                            onSelect={() => onThreadSelect(thread.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              return (
+                <div>
+                  {pinnedThreads.length > 0 && (
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Threads
+                    </p>
+                  )}
+                  {uncategorized.map((thread) => (
+                    <ThreadItem
+                      key={thread.id}
+                      thread={thread}
+                      threadFolders={sortedFolders}
+                      selected={selectedThreadId === thread.id}
+                      onSelect={() => onThreadSelect(thread.id)}
+                    />
+                  ))}
+                </div>
+              )
+            })()}
+
             <button
-              onClick={onCreateThread}
+              type="button"
+              onClick={() => void handleNewFolder()}
               className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
+            >
+              <FolderPlus size={14} className="shrink-0" />
+              <span>New folder</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onCreateThread(null)}
+              className="mt-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               <LineSquiggle size={14} className="shrink-0" />
               <span>New Thread</span>
@@ -498,10 +770,12 @@ export function ThreadList({
 
 function ThreadItem({
   thread,
+  threadFolders,
   selected,
   onSelect,
 }: {
   thread: Thread
+  threadFolders: ThreadFolder[]
   selected: boolean
   onSelect: () => void
 }) {
@@ -619,6 +893,29 @@ function ThreadItem({
                   {editName.length}/{THREAD_NAME_MAX_CHARS}
                 </p>
               </div>
+              {threadFolders.length > 0 && (
+                <div className="space-y-1 border-t border-border pt-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Folder
+                  </p>
+                  <select
+                    className="w-full rounded-lg border border-border bg-background px-2 py-2 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                    value={thread.folder_id ?? ''}
+                    onChange={async (e) => {
+                      const v = e.target.value === '' ? null : e.target.value
+                      const ok = await updateThread(thread.id, { folder_id: v })
+                      if (ok) updateThreadInStore(thread.id, { folder_id: v })
+                    }}
+                  >
+                    <option value="">None</option>
+                    {threadFolders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {error && (
                 <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
               )}

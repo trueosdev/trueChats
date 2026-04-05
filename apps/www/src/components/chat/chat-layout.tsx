@@ -26,7 +26,13 @@ import { CreateLoomDialog } from "../loom/create-loom-dialog";
 import { CreateThreadDialog } from "../loom/create-thread-dialog";
 import { LoomMembersDialog } from "../loom/loom-members-dialog";
 import { getLooms, subscribeToLooms } from "@/lib/services/looms";
-import { getThreads, subscribeToThreads, getUnreadLoomCounts } from "@/lib/services/threads";
+import {
+  getThreads,
+  getThreadFolders,
+  subscribeToThreads,
+  subscribeToThreadFolders,
+  getUnreadLoomCounts,
+} from "@/lib/services/threads";
 import { Snail } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
@@ -51,6 +57,9 @@ export function ChatLayout({
   const [showPendingChats, setShowPendingChats] = useState(false);
   const [showCreateLoom, setShowCreateLoom] = useState(false);
   const [showCreateThread, setShowCreateThread] = useState(false);
+  const [createThreadDefaultFolderId, setCreateThreadDefaultFolderId] = useState<
+    string | null
+  >(null);
   const [showLoomMembers, setShowLoomMembers] = useState(false);
   const isSidebarCollapsed = isCollapsed || isMobile;
 
@@ -62,6 +71,7 @@ export function ChatLayout({
   const looms = useChatStore((state) => state.looms);
   const selectedLoomId = useChatStore((state) => state.selectedLoomId);
   const threads = useChatStore((state) => state.threads);
+  const threadFolders = useChatStore((state) => state.threadFolders);
   const selectedThreadId = useChatStore((state) => state.selectedThreadId);
   const loomUnreadCounts = useChatStore((state) => state.loomUnreadCounts);
   const loomThreadsLoading = useChatStore((state) => state.loomLoading);
@@ -78,6 +88,7 @@ export function ChatLayout({
   const setLooms = useChatStore((state) => state.setLooms);
   const setSelectedLoomId = useChatStore((state) => state.setSelectedLoomId);
   const setThreads = useChatStore((state) => state.setThreads);
+  const setThreadFolders = useChatStore((state) => state.setThreadFolders);
   const setSelectedThreadId = useChatStore((state) => state.setSelectedThreadId);
   const setLoomLoading = useChatStore((state) => state.setLoomLoading);
   const addThread = useChatStore((state) => state.addThread);
@@ -164,30 +175,60 @@ export function ChatLayout({
 
     const loomId = selectedLoomId;
     setThreads([]);
+    setThreadFolders([]);
     setLoomLoading(true);
 
     let cancelled = false;
-    getThreads(loomId).then((data) => {
-      if (cancelled) return;
-      setThreads(data);
-      setLoomLoading(false);
+    Promise.all([getThreads(loomId), getThreadFolders(loomId)]).then(
+      ([threadData, folderData]) => {
+        if (cancelled) return;
+        setThreads(threadData);
+        setThreadFolders(folderData);
+        setLoomLoading(false);
+      },
+    );
+
+    const unsubscribeThreads = subscribeToThreads(loomId, {
+      onUpsert: (thread) => {
+        const currentThreads = useChatStore.getState().threads;
+        const exists = currentThreads.find((t) => t.id === thread.id);
+        if (exists) {
+          useChatStore.getState().updateThread(thread.id, thread);
+        } else {
+          useChatStore.getState().addThread(thread);
+        }
+      },
+      onDelete: (threadId) => {
+        useChatStore.getState().removeThread(threadId);
+      },
     });
 
-    const unsubscribe = subscribeToThreads(loomId, (thread) => {
-      const currentThreads = useChatStore.getState().threads;
-      const exists = currentThreads.find(t => t.id === thread.id);
-      if (exists) {
-        useChatStore.getState().updateThread(thread.id, thread);
-      } else {
-        useChatStore.getState().addThread(thread);
-      }
+    const unsubscribeFolders = subscribeToThreadFolders(loomId, {
+      onUpsert: (folder) => {
+        const current = useChatStore.getState().threadFolders;
+        const exists = current.some((f) => f.id === folder.id);
+        if (exists) {
+          useChatStore.getState().updateThreadFolder(folder.id, folder);
+        } else {
+          useChatStore.getState().addThreadFolder(folder);
+        }
+      },
+      onDelete: (folderId) => {
+        useChatStore.getState().removeThreadFolder(folderId);
+      },
     });
 
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribeThreads();
+      unsubscribeFolders();
     };
-  }, [selectedLoomId, setThreads, setLoomLoading]);
+  }, [
+    selectedLoomId,
+    setThreads,
+    setThreadFolders,
+    setLoomLoading,
+  ]);
 
   // Subscribe to messages for unread count updates
   useEffect(() => {
@@ -323,9 +364,13 @@ export function ChatLayout({
       <ThreadList
         loom={selectedLoom}
         threads={threads}
+        threadFolders={threadFolders}
         selectedThreadId={selectedThreadId}
         onThreadSelect={(threadId) => setSelectedThreadId(threadId)}
-        onCreateThread={() => setShowCreateThread(true)}
+        onCreateThread={(folderId) => {
+          setCreateThreadDefaultFolderId(folderId ?? null);
+          setShowCreateThread(true);
+        }}
         onShowMembers={() => setShowLoomMembers(true)}
         loading={loomThreadsLoading}
         isCollapsed={collapsed}
@@ -479,8 +524,13 @@ export function ChatLayout({
         {selectedLoomId && (
           <CreateThreadDialog
             open={showCreateThread}
-            onOpenChange={setShowCreateThread}
+            onOpenChange={(open) => {
+              setShowCreateThread(open);
+              if (!open) setCreateThreadDefaultFolderId(null);
+            }}
             loomId={selectedLoomId}
+            threadFolders={threadFolders}
+            defaultFolderId={createThreadDefaultFolderId}
             onThreadCreated={handleThreadCreated}
           />
         )}

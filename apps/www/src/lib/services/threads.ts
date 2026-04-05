@@ -1,5 +1,11 @@
 import { supabase } from '../supabase/client'
-import type { Thread, ThreadMessage, ThreadType, ThreadCategory } from '@/app/data'
+import type {
+  Thread,
+  ThreadFolder,
+  ThreadMessage,
+  ThreadType,
+  ThreadCategory,
+} from '@/app/data'
 import type { AttachmentData } from './attachments'
 import { getAvatarUrl } from '../utils'
 
@@ -11,10 +17,21 @@ export interface CreateThreadParams {
   type?: ThreadType
   category?: ThreadCategory
   createdBy: string
+  /** Optional folder to create the thread inside */
+  folderId?: string | null
 }
 
 export async function createThread(params: CreateThreadParams): Promise<Thread | null> {
-  const { loomId, name, description, iconEmoji, type = 'open', category = 'text', createdBy } = params
+  const {
+    loomId,
+    name,
+    description,
+    iconEmoji,
+    type = 'open',
+    category = 'text',
+    createdBy,
+    folderId,
+  } = params
 
   const { data, error } = await supabase
     .from('threads')
@@ -26,6 +43,7 @@ export async function createThread(params: CreateThreadParams): Promise<Thread |
       type,
       category,
       created_by: createdBy,
+      folder_id: folderId ?? null,
     })
     .select()
     .single()
@@ -35,7 +53,7 @@ export async function createThread(params: CreateThreadParams): Promise<Thread |
     throw new Error(error.message || 'Failed to create Thread')
   }
 
-  return data
+  return normalizeThreadRow(data as Record<string, unknown>)
 }
 
 export async function getThreads(loomId: string): Promise<Thread[]> {
@@ -52,7 +70,15 @@ export async function getThreads(loomId: string): Promise<Thread[]> {
     return []
   }
 
-  return data || []
+  return (data || []).map(normalizeThreadRow)
+}
+
+function normalizeThreadRow(row: Record<string, unknown>): Thread {
+  const t = row as unknown as Thread
+  return {
+    ...t,
+    folder_id: (row.folder_id as string | null | undefined) ?? null,
+  }
 }
 
 export async function getThreadById(threadId: string): Promise<Thread | null> {
@@ -67,7 +93,7 @@ export async function getThreadById(threadId: string): Promise<Thread | null> {
     return null
   }
 
-  return data
+  return data ? normalizeThreadRow(data as Record<string, unknown>) : null
 }
 
 export async function updateThread(
@@ -79,7 +105,8 @@ export async function updateThread(
     type?: ThreadType
     is_pinned?: boolean
     is_archived?: boolean
-  }
+    folder_id?: string | null
+  },
 ): Promise<boolean> {
   const { error } = await supabase
     .from('threads')
@@ -106,6 +133,121 @@ export async function deleteThread(threadId: string): Promise<boolean> {
   }
 
   return true
+}
+
+// --- Thread folders (loom sidebar groups) ---
+
+export async function getThreadFolders(loomId: string): Promise<ThreadFolder[]> {
+  const { data, error } = await supabase
+    .from('thread_folders')
+    .select('*')
+    .eq('loom_id', loomId)
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching thread folders:', error)
+    return []
+  }
+
+  return (data || []) as ThreadFolder[]
+}
+
+export async function createThreadFolder(params: {
+  loomId: string
+  name: string
+  createdBy: string
+}): Promise<ThreadFolder | null> {
+  const { loomId, name, createdBy } = params
+  const trimmed = name.trim()
+  if (!trimmed) return null
+
+  const existing = await getThreadFolders(loomId)
+  const position =
+    existing.length === 0
+      ? 0
+      : Math.max(...existing.map((f) => f.position)) + 1
+
+  const { data, error } = await supabase
+    .from('thread_folders')
+    .insert({
+      loom_id: loomId,
+      name: trimmed,
+      position,
+      created_by: createdBy,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating thread folder:', error)
+    return null
+  }
+
+  return data as ThreadFolder
+}
+
+export async function updateThreadFolder(
+  folderId: string,
+  updates: { name?: string; position?: number },
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('thread_folders')
+    .update(updates)
+    .eq('id', folderId)
+
+  if (error) {
+    console.error('Error updating thread folder:', error)
+    return false
+  }
+
+  return true
+}
+
+export async function deleteThreadFolder(folderId: string): Promise<boolean> {
+  const { error } = await supabase.from('thread_folders').delete().eq('id', folderId)
+
+  if (error) {
+    console.error('Error deleting thread folder:', error)
+    return false
+  }
+
+  return true
+}
+
+export function subscribeToThreadFolders(
+  loomId: string,
+  handlers: {
+    onUpsert: (folder: ThreadFolder) => void
+    onDelete: (folderId: string) => void
+  },
+) {
+  const channel = supabase
+    .channel(`thread_folders:${loomId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'thread_folders',
+        filter: `loom_id=eq.${loomId}`,
+      },
+      (payload) => {
+        const ev = payload.eventType
+        if (ev === 'DELETE') {
+          const oldRow = payload.old as { id?: string } | null
+          if (oldRow?.id) handlers.onDelete(oldRow.id)
+          return
+        }
+        const row = payload.new as ThreadFolder
+        if (row?.id) handlers.onUpsert(row)
+      },
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
 }
 
 // --- Thread Messages ---
@@ -463,7 +605,10 @@ export function subscribeToThreadMessages(
 
 export function subscribeToThreads(
   loomId: string,
-  callback: (thread: Thread) => void
+  handlers: {
+    onUpsert: (thread: Thread) => void
+    onDelete?: (threadId: string) => void
+  },
 ) {
   const channel = supabase
     .channel(`threads:${loomId}`)
@@ -476,8 +621,16 @@ export function subscribeToThreads(
         filter: `loom_id=eq.${loomId}`,
       },
       (payload) => {
-        callback(payload.new as Thread)
-      }
+        if (payload.eventType === 'DELETE') {
+          const oldRow = payload.old as { id?: string } | null
+          if (oldRow?.id) handlers.onDelete?.(oldRow.id)
+          return
+        }
+        const row = payload.new as Record<string, unknown> | null
+        if (row && typeof row.id === 'string') {
+          handlers.onUpsert(normalizeThreadRow(row))
+        }
+      },
     )
     .subscribe()
 

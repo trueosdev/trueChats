@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Lock, Video, LineSquiggle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { createThread } from '@/lib/services/threads'
 import { useAuth } from '@/hooks/useAuth'
-import type { Thread, ThreadType, ThreadCategory } from '@/app/data'
+import type { Thread, ThreadFolder, ThreadType, ThreadCategory } from '@/app/data'
 import { THREAD_DESCRIPTION_MAX_CHARS, THREAD_NAME_MAX_CHARS } from '@/lib/thread-field-limits'
 
 interface CreateThreadDialogProps {
@@ -13,9 +13,18 @@ interface CreateThreadDialogProps {
   onOpenChange: (open: boolean) => void
   loomId: string
   onThreadCreated: (thread: Thread) => void
+  threadFolders?: ThreadFolder[]
+  defaultFolderId?: string | null
 }
 
-export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated }: CreateThreadDialogProps) {
+export function CreateThreadDialog({
+  open,
+  onOpenChange,
+  loomId,
+  onThreadCreated,
+  threadFolders = [],
+  defaultFolderId = null,
+}: CreateThreadDialogProps) {
   const { user } = useAuth()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -23,6 +32,13 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
   const [category, setCategory] = useState<ThreadCategory>('text')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [createInFolderId, setCreateInFolderId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setCreateInFolderId(defaultFolderId ?? null)
+    }
+  }, [open, defaultFolderId])
 
   const handleCreate = async () => {
     if (!user || !name.trim()) return
@@ -36,6 +52,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
         type,
         category,
         createdBy: String(user.id),
+        folderId: createInFolderId,
       })
       if (thread) {
         onThreadCreated(thread)
@@ -54,6 +71,7 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
     setDescription('')
     setType('open')
     setCategory('text')
+    setCreateInFolderId(null)
     setError(null)
   }
 
@@ -120,6 +138,28 @@ export function CreateThreadDialog({ open, onOpenChange, loomId, onThreadCreated
               {description.length}/{THREAD_DESCRIPTION_MAX_CHARS}
             </p>
           </div>
+
+          {threadFolders.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-black/60 dark:text-white/60">
+                Folder
+              </label>
+              <select
+                value={createInFolderId ?? ''}
+                onChange={(e) =>
+                  setCreateInFolderId(e.target.value === '' ? null : e.target.value)
+                }
+                className="w-full rounded-lg border border-black/10 bg-black/5 px-3 py-2.5 text-sm text-black outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"
+              >
+                <option value="">None</option>
+                {threadFolders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-black/60 dark:text-white/60 mb-2 uppercase tracking-wide">

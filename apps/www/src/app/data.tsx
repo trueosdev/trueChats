@@ -91,6 +91,15 @@ export interface LoomMember {
   };
 }
 
+export interface ThreadFolder {
+  id: string;
+  loom_id: string;
+  name: string;
+  position: number;
+  created_by: string;
+  created_at: string;
+}
+
 export interface Thread {
   id: string;
   loom_id: string;
@@ -103,6 +112,8 @@ export interface Thread {
   is_archived: boolean;
   created_by: string;
   created_at: string;
+  /** When set, thread appears under this folder in the loom sidebar. */
+  folder_id: string | null;
   last_message: {
     id: string;
     content: string;
