@@ -8,18 +8,24 @@
 
 [data-lk-theme] .lk-button-group-menu {
   position: relative;
-  z-index: 1;
+  /* Above CallSpeakingAvatar (z-10) when flex siblings share one stacking context */
+  z-index: 50;
 }
 
-[data-lk-theme] .lk-device-menu {
-  z-index: 50;
+/* LiveKit uses background-color: var(--lk-bg2). With LiveKitRoom display:contents,
+   --lk-bg2 may not reach the menu, so the panel looks transparent over blur/video. */
+[data-lk-theme] .lk-device-menu,
+.livekit-lucide-call-controls .lk-device-menu {
+  --lk-bg2: hsl(var(--popover));
+  /* Above participant avatars / tiles; below app-level overlays (e.g. z-[600] mixer) */
+  z-index: 700 !important;
   min-width: 12rem;
   padding: 0.25rem;
   margin: 0;
   white-space: nowrap;
   border-radius: calc(var(--radius) - 2px);
   border: 1px solid hsl(var(--border));
-  background-color: hsl(var(--popover));
+  background-color: hsl(var(--popover)) !important;
   color: hsl(var(--popover-foreground));
   box-shadow:
     0 4px 6px -1px rgb(0 0 0 / 0.08),
@@ -59,15 +65,24 @@
   color: hsl(var(--popover-foreground));
 }
 
-[data-lk-theme] .lk-device-menu .lk-list li .lk-button:hover {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+[data-lk-theme] .lk-device-menu .lk-list li .lk-button:hover:not(:disabled),
+[data-lk-theme] .lk-device-menu .lk-list li .lk-button:focus-visible:not(:disabled) {
+  background-color: hsl(var(--foreground) / 0.15);
+  color: hsl(var(--popover-foreground));
 }
 
 [data-lk-theme] .lk-device-menu .lk-list li[aria-selected="true"] .lk-button,
 [data-lk-theme] .lk-device-menu .lk-list li[data-lk-active="true"] .lk-button {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+  background-color: hsl(var(--foreground) / 0.12);
+  color: hsl(var(--popover-foreground));
+}
+
+[data-lk-theme] .lk-device-menu .lk-list li[aria-selected="true"] .lk-button:hover:not(:disabled),
+[data-lk-theme] .lk-device-menu .lk-list li[data-lk-active="true"] .lk-button:hover:not(:disabled),
+[data-lk-theme] .lk-device-menu .lk-list li[aria-selected="true"] .lk-button:focus-visible:not(:disabled),
+[data-lk-theme] .lk-device-menu .lk-list li[data-lk-active="true"] .lk-button:focus-visible:not(:disabled) {
+  background-color: hsl(var(--foreground) / 0.22);
+  color: hsl(var(--popover-foreground));
 }
 
 [data-lk-theme] .lk-device-menu .lk-device-menu-heading {
@@ -76,6 +91,12 @@
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   opacity: 1;
+}
+
+/* Keep the whole control strip (and its open device menus) above z-10 avatars in the participant row */
+.livekit-lucide-call-controls {
+  position: relative;
+  z-index: 150;
 }
 
 /* Lucide LiveKit controls (thread + DM): round toggles; device menu = Lucide ChevronUp, no CSS chevron */

@@ -718,7 +718,7 @@ export function ThreadList({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
+                  className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/30 transition-colors hover:text-foreground"
                 >
                   <Folder size={14} className="shrink-0" />
                   <span>New folder</span>
@@ -742,7 +742,7 @@ export function ThreadList({
             <button
               type="button"
               onClick={() => onCreateThread(null)}
-              className="mt-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="mt-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground/30 transition-colors hover:text-foreground"
             >
               <LineSquiggle size={14} className="shrink-0" />
               <span>New Thread</span>

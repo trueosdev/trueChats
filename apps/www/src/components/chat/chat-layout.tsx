@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useState, useRef } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -20,6 +20,7 @@ import { getUnreadCounts, subscribeToMessages } from "@/lib/services/messages";
 import { getPendingRequests, subscribeToChatRequests } from "@/lib/services/chat-requests";
 import { LoomSidebar } from "../loom/loom-sidebar";
 import { RAIL_WIDTH } from "@/lib/layout-constants";
+import { useCall } from "@/components/call/call-provider";
 import { ThreadList } from "../loom/thread-list";
 import { ThreadChat } from "../loom/thread-chat";
 import { CreateLoomDialog } from "../loom/create-loom-dialog";
@@ -95,6 +96,36 @@ export function ChatLayout({
   const setLoomUnreadCounts = useChatStore((state) => state.setLoomUnreadCounts);
 
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const loomRailMeasureRef = useRef<HTMLDivElement | null>(null);
+  const sidebarMeasureRef = useRef<HTMLDivElement | null>(null);
+  const { callState, isMinimized } = useCall();
+  const dmCallFullscreenOverlay =
+    callState === "connected" && !isMinimized;
+
+  useLayoutEffect(() => {
+    if (!dmCallFullscreenOverlay) {
+      document.documentElement.style.removeProperty("--dm-call-inset-left");
+      return;
+    }
+
+    const root = document.documentElement;
+    const measure = () => {
+      const loom = loomRailMeasureRef.current?.offsetWidth ?? 0;
+      const sidebar = sidebarMeasureRef.current?.offsetWidth ?? 0;
+      root.style.setProperty("--dm-call-inset-left", `${loom + sidebar}px`);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (loomRailMeasureRef.current) ro.observe(loomRailMeasureRef.current);
+    if (sidebarMeasureRef.current) ro.observe(sidebarMeasureRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      root.style.removeProperty("--dm-call-inset-left");
+    };
+  }, [dmCallFullscreenOverlay]);
 
   useEffect(() => {
     const checkScreenWidth = () => {
@@ -461,17 +492,19 @@ export function ChatLayout({
   return (
     <ProtectedRoute>
       <div className="flex h-full">
-        {/* Loom rail */}
-        <LoomSidebar
-          looms={looms}
-          loomUnreadCounts={loomUnreadCounts}
-          selectedLoomId={selectedLoomId}
-          viewMode={viewMode}
-          onLoomSelect={handleLoomSelect}
-          onDmsSelect={handleDmsSelect}
-          onCreateLoom={() => setShowCreateLoom(true)}
-          loading={authLoading}
-        />
+        {/* Loom rail — width is summed into --dm-call-inset-left so DM call overlay leaves rail + thread list visible */}
+        <div ref={loomRailMeasureRef} className="h-full shrink-0">
+          <LoomSidebar
+            looms={looms}
+            loomUnreadCounts={loomUnreadCounts}
+            selectedLoomId={selectedLoomId}
+            viewMode={viewMode}
+            onLoomSelect={handleLoomSelect}
+            onDmsSelect={handleDmsSelect}
+            onCreateLoom={() => setShowCreateLoom(true)}
+            loading={authLoading}
+          />
+        </div>
 
         {/* Main content area */}
         <ResizablePanelGroup
@@ -501,7 +534,12 @@ export function ChatLayout({
             )}
             style={{ minWidth: RAIL_WIDTH, ...(isSidebarCollapsed ? { width: RAIL_WIDTH } : {}) }}
           >
-            {renderSidebarContent()}
+            <div
+              ref={sidebarMeasureRef}
+              className="flex h-full min-h-0 min-w-0 flex-col"
+            >
+              {renderSidebarContent()}
+            </div>
           </ResizablePanel>
           <ResizableHandle withHandle onDoubleClick={handleDoubleClick} />
           <ResizablePanel

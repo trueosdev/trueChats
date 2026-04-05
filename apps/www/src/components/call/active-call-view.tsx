@@ -231,7 +231,7 @@ export function ActiveCallView() {
       className={
         isMinimized
           ? "contents"
-          : "fixed inset-0 z-[200] flex h-full flex-col bg-background animate-in fade-in duration-200"
+          : "fixed bottom-0 right-0 top-0 z-[200] flex h-full flex-col bg-background left-[var(--dm-call-inset-left,0px)] animate-in fade-in duration-200"
       }
     >
       <LiveKitUiFeatureProvider>
