@@ -4,7 +4,7 @@ interface UseAutoScrollOptions {
     content?: React.ReactNode;
 }
 export declare function useAutoScroll(options?: UseAutoScrollOptions): {
-    scrollRef: import("react").RefObject<HTMLDivElement>;
+    scrollRef: import("react").RefObject<HTMLDivElement | null>;
     isAtBottom: boolean;
     autoScrollEnabled: boolean;
     scrollToBottom: () => void;

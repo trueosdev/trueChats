@@ -331,11 +331,11 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
         ))}
       </div>
 
+      <div className="min-w-0 flex-1">
       <AnimatePresence initial={false}>
         <motion.div
           key="input"
           layout
-          className="min-w-0 flex-1"
           initial={{ opacity: 0, scale: 1 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1 }}
@@ -392,6 +392,7 @@ export default function ChatBottombar({ conversationId, isMobile, typingChannel,
           </div>
         </motion.div>
       </AnimatePresence>
+      </div>
       </div>
     </div>
   );
