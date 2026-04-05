@@ -2,20 +2,22 @@
 
 import "@livekit/components-styles";
 import "@/app/livekit-overrides.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   LiveKitRoom,
-  GridLayout,
   useTracks,
   useRemoteParticipants,
   useLocalParticipant,
 } from "@livekit/components-react";
+import { isTrackReference } from "@livekit/components-core";
+import type { TrackReferenceOrPlaceholder } from "@livekit/components-core";
 import {
   CallAudioMixerProvider,
   MixerParticipantTile,
   PerParticipantRoomAudioRenderer,
   RemoteParticipantMixerBubble,
 } from "@/components/call/call-audio-mixer";
+import { ConferenceParticipantStrip } from "@/components/call/conference-participant-strip";
 import { LiveKitLucideControlBar } from "@/components/call/livekit-lucide-control-bar";
 import { Track } from "livekit-client";
 import { PhoneOff, Minimize2 } from "lucide-react";
@@ -24,8 +26,33 @@ import { useCall } from "./call-provider";
 import { CallSpeakingAvatar } from "./call-speaking-avatar";
 import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
 import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
+import { DmMinimizedCallPillInner } from "./minimized-call-pill";
 import { useAuth } from "@/hooks/useAuth";
 import { getAvatarUrl } from "@/lib/utils";
+
+function pickDmMainVideoTrack(
+  tracks: TrackReferenceOrPlaceholder[],
+): TrackReferenceOrPlaceholder | null {
+  const refs = tracks.filter(isTrackReference);
+  const liveScreen = (isLocal: boolean) =>
+    refs.find(
+      (t) =>
+        t.source === Track.Source.ScreenShare &&
+        t.participant.isLocal === isLocal &&
+        t.publication.isSubscribed &&
+        !!t.publication.track,
+    );
+  const liveCam = (isLocal: boolean) =>
+    refs.find(
+      (t) =>
+        t.source === Track.Source.Camera &&
+        t.participant.isLocal === isLocal &&
+        t.publication.isSubscribed &&
+        !!t.publication.track &&
+        !t.publication.isMuted,
+    );
+  return liveScreen(false) ?? liveCam(false) ?? liveScreen(true) ?? liveCam(true) ?? null;
+}
 
 function CallTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -136,14 +163,24 @@ function VideoView() {
   );
   const { hangUp, toggleMinimize } = useCall();
 
+  const mainTrack = useMemo(() => pickDmMainVideoTrack(tracks), [tracks]);
+
   return (
-    <div className="flex h-full flex-col bg-black" data-call-video-tiles="portrait-34">
-      <div className="flex-1 min-h-0">
-        <GridLayout tracks={tracks}>
-          <MixerParticipantTile />
-        </GridLayout>
+    <div className="flex h-full flex-col bg-black">
+      <div className="thread-call-main-stage relative min-h-0 flex-1 overflow-hidden bg-black">
+        {mainTrack ? (
+          <MixerParticipantTile
+            trackRef={mainTrack}
+            className="!h-full !min-h-0 !w-full !min-w-0"
+            mixerMenuContentClassName="z-[600]"
+          />
+        ) : null}
       </div>
-      <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex items-center justify-center gap-3 overflow-visible py-4 bg-black/80 backdrop-blur-sm">
+      <ConferenceParticipantStrip
+        className="border-white/15 bg-black/70"
+        mixerMenuContentClassName="z-[600]"
+      />
+      <div className="livekit-lucide-call-controls livekit-lucide-call-controls--dm flex shrink-0 items-center justify-center gap-3 overflow-visible py-4 bg-black/80 backdrop-blur-sm">
         <LiveKitLucideControlBar />
         <Button
           size="icon"
@@ -171,27 +208,34 @@ export function ActiveCallView() {
     useCall();
 
   if (callState !== "connected" || !livekitToken || !roomName) return null;
-  if (isMinimized) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col bg-black animate-in fade-in duration-200">
-      <LiveKitRoom
-        token={livekitToken}
-        serverUrl={livekitUrl}
-        connect={true}
-        video={callType === "video"}
-        audio={true}
-        options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
-        onDisconnected={hangUp}
-        data-lk-theme="default"
-        className="flex h-full flex-col"
-      >
-        <EnsureDefaultMediaDevices video={callType === "video"} />
-        <CallAudioMixerProvider>
-          {callType === "video" ? <VideoView /> : <AudioOnlyView />}
-          <PerParticipantRoomAudioRenderer />
-        </CallAudioMixerProvider>
-      </LiveKitRoom>
-    </div>
+    <LiveKitRoom
+      token={livekitToken}
+      serverUrl={livekitUrl}
+      connect={true}
+      video={callType === "video"}
+      audio={true}
+      options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
+      onDisconnected={hangUp}
+      data-lk-theme="default"
+      className={
+        isMinimized
+          ? "contents"
+          : "fixed inset-0 z-[200] flex h-full flex-col bg-black animate-in fade-in duration-200"
+      }
+    >
+      <EnsureDefaultMediaDevices video={callType === "video"} />
+      <CallAudioMixerProvider>
+        <PerParticipantRoomAudioRenderer />
+        {isMinimized ? (
+          <DmMinimizedCallPillInner />
+        ) : callType === "video" ? (
+          <VideoView />
+        ) : (
+          <AudioOnlyView />
+        )}
+      </CallAudioMixerProvider>
+    </LiveKitRoom>
   );
 }

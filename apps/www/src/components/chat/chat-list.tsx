@@ -188,14 +188,21 @@ export function ChatList({
       textArea.value = textToCopy;
       textArea.style.position = "fixed";
       textArea.style.opacity = "0";
-      document.body.appendChild(textArea);
-      textArea.select();
       try {
-        document.execCommand("copy");
-      } catch {
-        // ignore
+        document.body.appendChild(textArea);
+        try {
+          textArea.select();
+        } catch {
+          // selection can throw NotFoundError if node is detached
+        }
+        try {
+          document.execCommand("copy");
+        } catch {
+          // ignore
+        }
+      } finally {
+        textArea.remove();
       }
-      document.body.removeChild(textArea);
     }
   };
 

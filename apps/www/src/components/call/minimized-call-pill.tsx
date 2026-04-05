@@ -1,19 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LiveKitRoom, useLocalParticipant } from "@livekit/components-react";
-import {
-  CallAudioMixerProvider,
-  PerParticipantRoomAudioRenderer,
-} from "@/components/call/call-audio-mixer";
+import { useLocalParticipant } from "@livekit/components-react";
 import { PhoneOff, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import { useCall } from "./call-provider";
 import { RemoteMicWaveform } from "./remote-mic-waveform";
-import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
-import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
+import { MinimizedCallVideoThumb } from "./minimized-call-video-thumb";
 
 function PillTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -33,7 +28,8 @@ function PillTimer() {
   );
 }
 
-function PillControls() {
+/** Must render under the DM call LiveKitRoom (see ActiveCallView). */
+export function DmMinimizedCallPillInner() {
   const { hangUp, toggleMinimize, remoteUser } = useCall();
   let isMuted = false;
   try {
@@ -48,6 +44,7 @@ function PillControls() {
       className="fixed bottom-6 right-6 z-[201] animate-in slide-in-from-bottom-4 fade-in duration-300"
     >
       <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/90 backdrop-blur-xl pl-2 pr-1.5 py-1.5 shadow-2xl">
+        <MinimizedCallVideoThumb />
         <button
           onClick={toggleMinimize}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -92,29 +89,7 @@ function PillControls() {
   );
 }
 
+/** @deprecated Pill is rendered inside ActiveCallView’s single LiveKitRoom. */
 export function MinimizedCallPill() {
-  const { callState, isMinimized, livekitToken, livekitUrl, roomName, callType, hangUp } =
-    useCall();
-
-  if (callState !== "connected" || !isMinimized || !livekitToken || !roomName) {
-    return null;
-  }
-
-  return (
-    <LiveKitRoom
-      token={livekitToken}
-      serverUrl={livekitUrl}
-      connect={true}
-      video={false}
-      audio={true}
-      options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
-      onDisconnected={hangUp}
-    >
-      <EnsureDefaultMediaDevices video={false} />
-      <CallAudioMixerProvider>
-        <PerParticipantRoomAudioRenderer />
-        <PillControls />
-      </CallAudioMixerProvider>
-    </LiveKitRoom>
-  );
+  return null;
 }

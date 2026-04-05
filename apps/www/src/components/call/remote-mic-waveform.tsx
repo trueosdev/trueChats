@@ -15,7 +15,11 @@ function useRemoteMicEnergy(): number {
   const mediaTrack = micPub?.track?.mediaStreamTrack;
 
   useEffect(() => {
-    if (!mediaTrack || mediaTrack.readyState === "ended" || muted) {
+    if (!mediaTrack || muted) {
+      setEnergy(0);
+      return;
+    }
+    if (mediaTrack.readyState !== "live") {
       setEnergy(0);
       return;
     }
@@ -23,22 +27,39 @@ function useRemoteMicEnergy(): number {
     const Ctx =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    const stream = new MediaStream([mediaTrack]);
-    const source = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 128;
-    analyser.smoothingTimeConstant = 0.72;
-    analyser.minDecibels = -85;
-    analyser.maxDecibels = -25;
 
-    source.connect(analyser);
-    const silent = ctx.createGain();
-    silent.gain.value = 0;
-    analyser.connect(silent);
-    silent.connect(ctx.destination);
+    let ctx: AudioContext | undefined;
+    let source: MediaStreamAudioSourceNode | undefined;
+    let analyser: AnalyserNode | undefined;
+    let silent: GainNode | undefined;
 
-    void ctx.resume();
+    try {
+      ctx = new Ctx();
+      const stream = new MediaStream([mediaTrack]);
+      source = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.72;
+      analyser.minDecibels = -85;
+      analyser.maxDecibels = -25;
+
+      source.connect(analyser);
+      silent = ctx.createGain();
+      silent.gain.value = 0;
+      analyser.connect(silent);
+      silent.connect(ctx.destination);
+    } catch {
+      setEnergy(0);
+      void ctx?.close().catch(() => {});
+      return;
+    }
+
+    if (!ctx || !source || !analyser || !silent) {
+      setEnergy(0);
+      return;
+    }
+
+    void ctx.resume().catch(() => {});
 
     const bufferLength = analyser.frequencyBinCount;
     const data = new Uint8Array(bufferLength);
@@ -46,8 +67,30 @@ function useRemoteMicEnergy(): number {
     let lastSet = 0;
     let smooth = 0;
 
+    let cancelled = false;
+
+    const stop = () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+
+    const onTrackEnded = () => {
+      stop();
+      setEnergy(0);
+    };
+    mediaTrack.addEventListener("ended", onTrackEnded);
+
     const tick = () => {
-      analyser.getByteFrequencyData(data);
+      if (cancelled || !ctx || ctx.state === "closed") return;
+      if (mediaTrack.readyState !== "live") {
+        stop();
+        return;
+      }
+      try {
+        analyser.getByteFrequencyData(data);
+      } catch {
+        return;
+      }
       let sum = 0;
       for (let i = 0; i < bufferLength; i++) sum += data[i] ?? 0;
       const avg = sum / bufferLength / 255;
@@ -64,11 +107,16 @@ function useRemoteMicEnergy(): number {
     raf = requestAnimationFrame(tick);
 
     return () => {
-      cancelAnimationFrame(raf);
-      source.disconnect();
-      analyser.disconnect();
-      silent.disconnect();
-      ctx.close();
+      stop();
+      mediaTrack.removeEventListener("ended", onTrackEnded);
+      try {
+        source?.disconnect();
+        analyser?.disconnect();
+        silent?.disconnect();
+      } catch {
+        /* NotFoundError / InvalidStateError when graph already torn down */
+      }
+      void ctx?.close().catch(() => {});
     };
   }, [mediaTrack?.id, muted, mediaTrack?.readyState]);
 
@@ -84,7 +132,7 @@ export function RemoteMicWaveform({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-block shrink-0 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]",
+        "inline-block shrink-0 rounded-full bg-white shadow-[0_0_10px_rgba(0,0,0,0.55)]",
         className,
       )}
       style={{

@@ -40,11 +40,11 @@ export function IncomingCallOverlay() {
           </Button>
           <Button
             size="sm"
-            className="h-8 rounded-full bg-green-600 text-white hover:bg-green-700 px-3 gap-1.5 text-xs font-medium"
+            className="h-8 gap-1.5 rounded-full bg-green-600 px-3 text-xs font-medium text-white shadow-md shadow-green-600/35 hover:bg-green-700"
             onClick={joinCall}
           >
             <Phone className="h-3.5 w-3.5" />
-            Join
+            Accept
           </Button>
         </div>
       </div>

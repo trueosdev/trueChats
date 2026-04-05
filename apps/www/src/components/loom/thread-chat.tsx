@@ -1,31 +1,16 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { Lock, Video, PhoneOff, Phone, PhoneCall, LineSquiggle } from 'lucide-react'
-import {
-  LiveKitRoom,
-  GridLayout,
-  useTracks,
-  LayoutContextProvider,
-  useCreateLayoutContext,
-  usePinnedTracks,
-  TrackLoop,
-  FocusLayoutContainer,
-} from '@livekit/components-react'
-import {
-  CallAudioMixerProvider,
-  MixerParticipantTile,
-  PerParticipantRoomAudioRenderer,
-} from '@/components/call/call-audio-mixer'
-import { isEqualTrackRef, isTrackReference } from '@livekit/components-core'
-import type { TrackReferenceOrPlaceholder } from '@livekit/components-core'
+import { useTracks } from '@livekit/components-react'
+import { MixerParticipantTile } from '@/components/call/call-audio-mixer'
+import { ConferenceParticipantStrip } from '@/components/call/conference-participant-strip'
+import { isTrackReference } from '@livekit/components-core'
 import '@livekit/components-styles'
 import '@/app/livekit-overrides.css'
 import { Track } from 'livekit-client'
 import { Button } from '@/components/ui/button'
 import { LiveKitLucideControlBar } from '@/components/call/livekit-lucide-control-bar'
-import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from '@/components/call/livekit-room-media-defaults'
-import { EnsureDefaultMediaDevices } from '@/components/call/ensure-default-media-devices'
 import { useThreadCall } from '@/components/call/thread-call-provider'
 import { ExpandableChatHeader } from '@shadcn-chat/ui'
 import { ChatList } from '../chat/chat-list'
@@ -165,57 +150,6 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
   )
 }
 
-/** Same layout/orientation as LiveKit's CarouselLayout, but TrackLoop only — avoids useVisualStableUpdate/updatePages throwing when the focused track leaves the strip. */
-function ThreadCallCarouselStrip({ tracks }: { tracks: TrackReferenceOrPlaceholder[] }) {
-  const asideEl = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState({ width: 0, height: 0 })
-
-  useLayoutEffect(() => {
-    const el = asideEl.current
-    if (!el) return
-    const ro = new ResizeObserver((entries) => {
-      const cr = entries[0]?.contentRect
-      if (cr) setSize({ width: cr.width, height: cr.height })
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  const { width, height } = size
-  const carouselOrientation = height >= width ? 'vertical' : 'horizontal'
-
-  const MIN_HEIGHT = 130
-  const MIN_WIDTH = 140
-  /** Portrait 3:4 tiles (width:height) — matches CSS on `.lk-carousel > *` */
-  const ASPECT_RATIO = 3 / 4
-  const tileSpan =
-    carouselOrientation === 'vertical'
-      ? Math.max(width * (4 / 3), MIN_HEIGHT)
-      : Math.max(height * ASPECT_RATIO, MIN_WIDTH)
-
-  const tilesThatFit =
-    carouselOrientation === 'vertical'
-      ? Math.max(height / tileSpan, 1)
-      : Math.max(width / tileSpan, 1)
-
-  const maxVisibleTiles = Math.max(1, Math.round(tilesThatFit))
-
-  useLayoutEffect(() => {
-    const el = asideEl.current
-    if (!el) return
-    el.dataset.lkOrientation = carouselOrientation
-    el.style.setProperty('--lk-max-visible-tiles', String(maxVisibleTiles))
-  }, [maxVisibleTiles, carouselOrientation])
-
-  return (
-    <aside key={carouselOrientation} ref={asideEl} className="lk-carousel min-h-0">
-      <TrackLoop tracks={tracks}>
-        <MixerParticipantTile />
-      </TrackLoop>
-    </aside>
-  )
-}
-
 function CallControls({ onLeave }: { onLeave: () => void }) {
   return (
     <div className="livekit-lucide-call-controls flex items-center justify-center gap-3 py-4 shrink-0 overflow-visible">
@@ -234,10 +168,6 @@ function CallControls({ onLeave }: { onLeave: () => void }) {
 }
 
 function CallGrid() {
-  const layoutContext = useCreateLayoutContext()
-  const lastAutoFocusedScreenShareTrack = useRef<TrackReferenceOrPlaceholder | null>(null)
-  const tracksRef = useRef<TrackReferenceOrPlaceholder[]>([])
-
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -246,82 +176,42 @@ function CallGrid() {
     { onlySubscribed: false },
   )
 
-  tracksRef.current = tracks
-
-  const screenShareKey = useMemo(
-    () =>
-      tracks
-        .filter(isTrackReference)
-        .filter((track) => track.publication.source === Track.Source.ScreenShare)
-        .map((ref) => `${ref.publication.trackSid}_${ref.publication.isSubscribed}`)
-        .join(','),
-    [tracks],
-  )
-
-  const focusTrack = usePinnedTracks(layoutContext)?.[0]
-  const carouselTracks = tracks.filter((track) => !isEqualTrackRef(track, focusTrack))
-
-  useEffect(() => {
-    const tracksNow = tracksRef.current
-    const screenShareTracksNow = tracksNow
+  const mainTrack = useMemo(() => {
+    const liveScreen = tracks
       .filter(isTrackReference)
-      .filter((track) => track.publication.source === Track.Source.ScreenShare)
+      .find(
+        (t) =>
+          t.source === Track.Source.ScreenShare &&
+          t.publication.isSubscribed &&
+          !!t.publication.track,
+      )
+    if (liveScreen) return liveScreen
 
-    if (
-      screenShareTracksNow.some((track) => track.publication.isSubscribed) &&
-      lastAutoFocusedScreenShareTrack.current === null
-    ) {
-      layoutContext.pin.dispatch?.({ msg: 'set_pin', trackReference: screenShareTracksNow[0] })
-      lastAutoFocusedScreenShareTrack.current = screenShareTracksNow[0]
-    } else if (
-      lastAutoFocusedScreenShareTrack.current &&
-      !screenShareTracksNow.some(
-        (track) =>
-          track.publication.trackSid ===
-          lastAutoFocusedScreenShareTrack.current?.publication?.trackSid,
+    const liveCamera = tracks
+      .filter(isTrackReference)
+      .find(
+        (t) =>
+          t.source === Track.Source.Camera &&
+          t.publication.isSubscribed &&
+          !!t.publication.track &&
+          !t.publication.isMuted,
       )
-    ) {
-      layoutContext.pin.dispatch?.({ msg: 'clear_pin' })
-      lastAutoFocusedScreenShareTrack.current = null
-    }
-    if (focusTrack && !isTrackReference(focusTrack)) {
-      const updatedFocusTrack = tracksNow.find(
-        (tr) =>
-          tr.participant.identity === focusTrack.participant.identity &&
-          tr.source === focusTrack.source,
-      )
-      if (updatedFocusTrack !== focusTrack && isTrackReference(updatedFocusTrack)) {
-        layoutContext.pin.dispatch?.({ msg: 'set_pin', trackReference: updatedFocusTrack })
-      }
-    }
-  }, [
-    screenShareKey,
-    focusTrack?.publication?.trackSid,
-    layoutContext.pin.dispatch,
-    focusTrack,
-  ])
+    return liveCamera ?? null
+  }, [tracks])
 
   return (
-    <LayoutContextProvider value={layoutContext}>
-      <div className="flex-1 relative min-h-0 flex flex-col overflow-hidden">
-        {!focusTrack ? (
-          <div className="flex-1 min-h-0 w-full min-w-0 overflow-hidden">
-            <GridLayout tracks={tracks} style={{ height: '100%' }}>
-              <MixerParticipantTile />
-            </GridLayout>
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0 w-full min-w-0 overflow-hidden flex flex-col">
-            <FocusLayoutContainer className="h-full min-h-0 max-h-full flex-1 overflow-hidden">
-              <ThreadCallCarouselStrip tracks={carouselTracks} />
-              {focusTrack ? (
-                <MixerParticipantTile trackRef={focusTrack} className="min-h-0 min-w-0" />
-              ) : null}
-            </FocusLayoutContainer>
-          </div>
-        )}
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="thread-call-main-stage relative min-h-0 flex-1 overflow-hidden bg-black">
+        {mainTrack ? (
+          <MixerParticipantTile
+            trackRef={mainTrack}
+            className="!h-full !min-h-0 !w-full !min-w-0"
+            mixerMenuContentClassName="z-[600]"
+          />
+        ) : null}
       </div>
-    </LayoutContextProvider>
+      <ConferenceParticipantStrip mixerMenuContentClassName="z-[600]" />
+    </div>
   )
 }
 
@@ -499,30 +389,9 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
       )}
 
       {isConnectedToThisThread && threadCall.livekitToken ? (
-        <div
-          className="flex-1 flex flex-col min-h-0 overflow-hidden"
-          data-lk-theme="default"
-          data-thread-voice-call=""
-          data-call-video-tiles="portrait-34"
-        >
-          <LiveKitRoom
-            serverUrl={threadCall.livekitUrl}
-            token={threadCall.livekitToken}
-            connect={true}
-            audio={true}
-            video={false}
-            options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
-            onDisconnected={threadCall.leaveThreadCall}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-          >
-            <EnsureDefaultMediaDevices video={false} />
-            <CallAudioMixerProvider>
-              <CallGrid />
-              <CallControls onLeave={threadCall.leaveThreadCall} />
-              <PerParticipantRoomAudioRenderer />
-            </CallAudioMixerProvider>
-          </LiveKitRoom>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <CallGrid />
+          <CallControls onLeave={threadCall.leaveThreadCall} />
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
@@ -533,7 +402,7 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
           <button
             onClick={handleJoin}
             disabled={connecting}
-            className="px-4 py-4 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium text-sm transition-colors flex items-center justify-center"
+            className="flex items-center justify-center rounded-full bg-green-600 px-4 py-4 text-sm font-medium text-white shadow-lg shadow-green-600/40 transition-colors hover:bg-green-700 disabled:opacity-50"
           >
             {connecting ? (
               <PhoneCall size={20} className="text-white animate-pulse" />

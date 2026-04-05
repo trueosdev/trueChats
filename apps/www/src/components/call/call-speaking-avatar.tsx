@@ -58,7 +58,7 @@ export function CallSpeakingAvatar({
             >
               <span
                 className={cn(
-                  "block rounded-full border-2 border-emerald-400/80 shadow-[0_0_16px_rgba(52,211,153,0.4)] animate-speak-ring-expand",
+                  "block rounded-full border-2 border-white/80 shadow-[0_0_16px_rgba(0,0,0,0.4)] animate-speak-ring-expand",
                   preset.ring,
                 )}
               />
@@ -69,7 +69,7 @@ export function CallSpeakingAvatar({
             >
               <span
                 className={cn(
-                  "block rounded-full border border-emerald-400/50 animate-speak-ring-expand [animation-delay:550ms]",
+                  "block rounded-full border border-white/50 animate-speak-ring-expand [animation-delay:550ms]",
                   preset.ring,
                 )}
               />
@@ -80,7 +80,7 @@ export function CallSpeakingAvatar({
             >
               <span
                 className={cn(
-                  "block rounded-full border border-emerald-300/35 animate-speak-ring-expand [animation-delay:1s]",
+                  "block rounded-full border border-white/35 animate-speak-ring-expand [animation-delay:1s]",
                   preset.ring,
                 )}
               />
@@ -93,7 +93,7 @@ export function CallSpeakingAvatar({
             "relative z-10 shrink-0 border-2 transition-[box-shadow,border-color] duration-300",
             preset.avatar,
             isSpeaking
-              ? "border-emerald-400/95 shadow-[0_0_22px_rgba(52,211,153,0.32)]"
+              ? "border-white/95 shadow-[0_0_22px_rgba(0,0,0,0.32)]"
               : "border-white/20 shadow-none",
           )}
         >

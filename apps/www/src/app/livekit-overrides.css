@@ -206,82 +206,27 @@
   color: rgb(147 197 253);
 }
 
-/* Thread voice call: keep screen-share focus layout inside the panel (grid min-height:auto + video intrinsic size was growing the page). */
-[data-thread-voice-call] .lk-focus-layout {
-  height: 100%;
-  min-height: 0;
-  max-height: 100%;
-  overflow: hidden;
-  align-items: stretch;
-}
-
-[data-thread-voice-call] .lk-focus-layout > * {
-  min-height: 0;
-  min-width: 0;
-}
-
-[data-thread-voice-call] .lk-carousel {
-  min-height: 0;
-}
-
-[data-thread-voice-call] .lk-focus-layout .lk-participant-tile {
-  min-height: 0;
-  height: 100%;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Portrait 3:4 camera tiles — thread voice + DM video (clean “calling card” layout) */
-/* Screen share stays wide in grid; in focus mode the main pane stays uncropped below. */
-/* -------------------------------------------------------------------------- */
-
-[data-call-video-tiles="portrait-34"] .lk-grid-layout {
-  container-type: size;
-  justify-items: center;
-  align-items: center;
-  align-content: center;
-}
-
-[data-call-video-tiles="portrait-34"] .lk-grid-layout .lk-participant-tile:not([data-lk-source="screen_share"]) {
-  aspect-ratio: 3 / 4;
-  width: min(100cqw, calc(100cqh * 3 / 4));
-  height: min(100cqh, calc(100cqw * 4 / 3));
-  max-width: 100%;
-  max-height: 100%;
-  place-self: center;
-  border-radius: 0.75rem;
-  overflow: hidden;
-  box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
-}
-
-[data-call-video-tiles="portrait-34"] .lk-grid-layout .lk-participant-tile[data-lk-source="screen_share"] {
-  aspect-ratio: 16 / 9;
-  width: min(100cqw, calc(100cqh * 16 / 9));
-  height: min(100cqh, calc(100cqw * 9 / 16));
-  max-width: 100%;
-  max-height: 100%;
-  place-self: center;
-  border-radius: 0.5rem;
-  overflow: hidden;
-}
-
-[data-call-video-tiles="portrait-34"] .lk-participant-tile:not([data-lk-source="screen_share"]) .lk-participant-media-video {
-  object-fit: cover;
-  object-position: center;
-}
-
-/* Focus mode: thumbnail strip uses portrait tiles; main share stays full cell */
-[data-thread-voice-call][data-call-video-tiles="portrait-34"] .lk-carousel > * {
-  aspect-ratio: 3 / 4 !important;
-}
-
-[data-thread-voice-call][data-call-video-tiles="portrait-34"]
-  .lk-focus-layout
-  .lk-participant-tile[data-lk-source="screen_share"] {
-  aspect-ratio: unset;
-  border-radius: 0.5rem;
+/* Thread voice + DM video: one full-area tile (screen share or camera) */
+.thread-call-main-stage .lk-participant-tile {
   width: 100%;
   height: 100%;
-  max-width: none;
-  max-height: none;
+  min-height: 0;
+  border-radius: 0;
   box-shadow: none;
+  overflow: hidden;
+}
+
+.thread-call-main-stage .lk-participant-metadata,
+.thread-call-main-stage .focus-toggle-button {
+  display: none !important;
+}
+
+.thread-call-main-stage .lk-participant-tile[data-lk-source="screen_share"] video,
+.thread-call-main-stage .lk-participant-tile[data-lk-source="screen_share"] .lk-participant-media-video {
+  object-fit: contain;
+}
+
+.thread-call-main-stage .lk-participant-tile:not([data-lk-source="screen_share"]) video,
+.thread-call-main-stage .lk-participant-tile:not([data-lk-source="screen_share"]) .lk-participant-media-video {
+  object-fit: cover;
 }

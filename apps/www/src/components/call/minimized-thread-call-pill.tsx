@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LiveKitRoom } from "@livekit/components-react";
-import {
-  CallAudioMixerProvider,
-  PerParticipantRoomAudioRenderer,
-} from "@/components/call/call-audio-mixer";
 import { PhoneOff, Maximize2, LineSquiggle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useThreadCall } from "./thread-call-provider";
 import useChatStore from "@/hooks/useChatStore";
-import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
-import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
+import { MinimizedCallVideoThumb } from "./minimized-call-video-thumb";
 
 function PillTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -25,13 +19,14 @@ function PillTimer() {
   const ss = String(elapsed % 60).padStart(2, "0");
 
   return (
-    <span className="tabular-nums text-xs text-green-400 font-medium">
+    <span className="tabular-nums text-xs text-white font-medium">
       {mm}:{ss}
     </span>
   );
 }
 
-function PillControls() {
+/** Must render under the thread call LiveKitRoom (see ThreadCallLiveKitShell). */
+export function ThreadMinimizedPillContent() {
   const { leaveThreadCall, threadName, loomId, threadId } = useThreadCall();
   const setViewMode = useChatStore((s) => s.setViewMode);
   const setSelectedLoomId = useChatStore((s) => s.setSelectedLoomId);
@@ -50,12 +45,13 @@ function PillControls() {
   return (
     <div className="fixed bottom-6 right-6 z-[201] animate-in slide-in-from-bottom-4 fade-in duration-300">
       <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/90 backdrop-blur-xl pl-2 pr-1.5 py-1.5 shadow-2xl">
+        <MinimizedCallVideoThumb />
         <button
           onClick={navigateToThread}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div className="h-7 w-7 rounded-full bg-emerald-600/20 flex items-center justify-center shrink-0">
-            <LineSquiggle className="h-3.5 w-3.5 text-emerald-400" />
+          <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <LineSquiggle className="h-3.5 w-3.5 text-white" />
           </div>
           <div className="flex flex-col gap-0.5 min-w-0 mr-1">
             <span className="text-xs font-medium text-white truncate max-w-[100px]">
@@ -88,40 +84,7 @@ function PillControls() {
   );
 }
 
+/** @deprecated Pill is rendered by ThreadCallLiveKitShell; kept for any stray imports. */
 export function MinimizedThreadCallPill() {
-  const {
-    threadCallState,
-    isMinimized,
-    livekitToken,
-    livekitUrl,
-    roomName,
-    leaveThreadCall,
-  } = useThreadCall();
-
-  if (
-    threadCallState !== "connected" ||
-    !isMinimized ||
-    !livekitToken ||
-    !roomName
-  ) {
-    return null;
-  }
-
-  return (
-    <LiveKitRoom
-      token={livekitToken}
-      serverUrl={livekitUrl}
-      connect={true}
-      video={false}
-      audio={true}
-      options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
-      onDisconnected={leaveThreadCall}
-    >
-      <EnsureDefaultMediaDevices video={false} />
-      <CallAudioMixerProvider>
-        <PerParticipantRoomAudioRenderer />
-        <PillControls />
-      </CallAudioMixerProvider>
-    </LiveKitRoom>
-  );
+  return null;
 }

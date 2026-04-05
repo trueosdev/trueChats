@@ -14,9 +14,8 @@ import { TerminalModeProvider } from "@/components/terminal/terminal-mode-provid
 import { CallProvider } from "@/components/call/call-provider";
 import { IncomingCallOverlay } from "@/components/call/incoming-call-overlay";
 import { ActiveCallView } from "@/components/call/active-call-view";
-import { MinimizedCallPill } from "@/components/call/minimized-call-pill";
 import { ThreadCallProvider } from "@/components/call/thread-call-provider";
-import { MinimizedThreadCallPill } from "@/components/call/minimized-thread-call-pill";
+import { ThreadCallLiveKitShell } from "@/components/call/thread-call-livekit-shell";
 import { ElectronTitlebar } from "@/components/electron-titlebar";
 
 const questrial = Questrial({
@@ -50,15 +49,15 @@ export default function RootLayout({
           <AuthProvider>
             <CallProvider>
               <ThreadCallProvider>
-                <TerminalModeProvider>
-                  <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch pt-[var(--electron-titlebar-height)]">
-                    {children}
-                  </main>
-                </TerminalModeProvider>
+                <ThreadCallLiveKitShell>
+                  <TerminalModeProvider>
+                    <main className="flex h-[calc(100dvh)] min-h-0 flex-col items-stretch pt-[var(--electron-titlebar-height)]">
+                      {children}
+                    </main>
+                  </TerminalModeProvider>
+                </ThreadCallLiveKitShell>
                 <IncomingCallOverlay />
                 <ActiveCallView />
-                <MinimizedCallPill />
-                <MinimizedThreadCallPill />
               </ThreadCallProvider>
             </CallProvider>
           </AuthProvider>
