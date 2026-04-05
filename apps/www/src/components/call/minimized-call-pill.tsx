@@ -9,6 +9,7 @@ import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import { useCall } from "./call-provider";
 import { RemoteMicWaveform } from "./remote-mic-waveform";
 import { MinimizedCallVideoThumb } from "./minimized-call-video-thumb";
+import { DraggableMinimizedPillFrame } from "./draggable-minimized-pill-frame";
 
 function PillTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -40,9 +41,7 @@ export function DmMinimizedCallPillInner() {
   }
 
   return (
-    <div
-      className="fixed bottom-6 right-6 z-[201] animate-in slide-in-from-bottom-4 fade-in duration-300"
-    >
+    <DraggableMinimizedPillFrame>
       <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/90 backdrop-blur-xl pl-2 pr-1.5 py-1.5 shadow-2xl">
         <MinimizedCallVideoThumb />
         <button
@@ -85,7 +84,7 @@ export function DmMinimizedCallPillInner() {
           </Button>
         </div>
       </div>
-    </div>
+    </DraggableMinimizedPillFrame>
   );
 }
 
