@@ -194,12 +194,16 @@ export function ChatLayout({
     if (!user || conversations.length === 0) return;
 
     const unsubscribers = conversations.map((conv) => {
-      return subscribeToMessages(conv.id, async (message) => {
-        if (message.sender_id !== user.id && selectedConversationId !== conv.id) {
-          const counts = await getUnreadCounts(user.id, [conv.id]);
-          setUnreadCount(conv.id, counts[conv.id] || 0);
-        }
-      });
+      return subscribeToMessages(
+        conv.id,
+        async (message) => {
+          if (message.sender_id !== user.id && selectedConversationId !== conv.id) {
+            const counts = await getUnreadCounts(user.id, [conv.id]);
+            setUnreadCount(conv.id, counts[conv.id] || 0);
+          }
+        },
+        { channelScope: "layout-unread" },
+      );
     });
 
     return () => {

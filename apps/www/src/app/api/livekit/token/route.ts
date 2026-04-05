@@ -20,7 +20,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { roomName, participantName } = await req.json();
+  const body = await req.json();
+  const { roomName, participantName, avatarUrl } = body as {
+    roomName?: string;
+    participantName?: string;
+    avatarUrl?: string | null;
+  };
 
   if (!roomName || !participantName) {
     return NextResponse.json(
@@ -28,6 +33,9 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+
+  const avatarForMeta =
+    typeof avatarUrl === "string" && avatarUrl.trim() !== "" ? avatarUrl.trim() : null;
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
@@ -42,6 +50,7 @@ export async function POST(req: NextRequest) {
   const accessToken = new AccessToken(apiKey, apiSecret, {
     identity: user.id,
     name: participantName,
+    metadata: JSON.stringify({ avatarUrl: avatarForMeta }),
   });
 
   accessToken.addGrant({

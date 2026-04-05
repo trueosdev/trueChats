@@ -171,12 +171,23 @@ export async function sendMessage(
   }
 }
 
+export type SubscribeToMessagesOptions = {
+  /**
+   * Supabase reuses channels by name; registering `.on()` after `subscribe()` throws.
+   * Use a unique scope when more than one subscription exists for the same conversation
+   * (e.g. layout unread badges vs. open chat pane).
+   */
+  channelScope?: string;
+};
+
 export function subscribeToMessages(
   conversationId: string,
-  callback: (message: MessageWithUser) => void
+  callback: (message: MessageWithUser) => void,
+  options?: SubscribeToMessagesOptions,
 ) {
+  const scope = options?.channelScope ?? "default";
   const channel = supabase
-    .channel(`messages:${conversationId}`)
+    .channel(`messages:${conversationId}:${scope}`)
     .on(
       'postgres_changes',
       {

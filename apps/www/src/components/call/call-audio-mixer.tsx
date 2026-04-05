@@ -11,12 +11,12 @@ import {
 } from "react";
 import {
   AudioTrack,
-  ParticipantTile,
   useEnsureTrackRef,
   useLocalParticipant,
   useTracks,
   type ParticipantTileProps,
 } from "@livekit/components-react";
+import { CallParticipantTile } from "@/components/call/call-participant-tile";
 import { getTrackReferenceId } from "@livekit/components-core";
 import { Track } from "livekit-client";
 import { Volume2, VolumeX } from "lucide-react";
@@ -236,7 +236,7 @@ export const MixerParticipantTile = forwardRef<
     trackReference.participant.identity === localParticipant.identity;
 
   if (isLocal) {
-    return <ParticipantTile ref={ref} {...tileProps} />;
+    return <CallParticipantTile ref={ref} {...tileProps} />;
   }
 
   const displayName =
@@ -251,7 +251,7 @@ export const MixerParticipantTile = forwardRef<
           ref={ref}
           className="relative h-full min-h-0 w-full min-w-0"
         >
-          <ParticipantTile
+          <CallParticipantTile
             {...tileProps}
             className={cn("h-full w-full", tileProps.className)}
           />

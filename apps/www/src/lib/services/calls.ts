@@ -28,6 +28,7 @@ export function getCallRoomName(conversationId: string) {
 export async function getLiveKitToken(
   roomName: string,
   participantName: string,
+  avatarUrl?: string | null,
 ): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
   const res = await fetch("/api/livekit/token", {
@@ -38,7 +39,7 @@ export async function getLiveKitToken(
         ? { Authorization: `Bearer ${session.access_token}` }
         : {}),
     },
-    body: JSON.stringify({ roomName, participantName }),
+    body: JSON.stringify({ roomName, participantName, avatarUrl: avatarUrl ?? null }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

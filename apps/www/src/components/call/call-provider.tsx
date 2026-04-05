@@ -159,7 +159,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
       setMinimized(true);
 
       try {
-        const token = await getLiveKitToken(room, displayName);
+        const token = await getLiveKitToken(
+          room,
+          displayName,
+          user.user_metadata?.avatar_url ?? null,
+        );
         setLivekitToken(token);
         setCallState("connected");
 
@@ -195,7 +199,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
       "User";
 
     try {
-      const token = await getLiveKitToken(currentRoomName, displayName);
+      const token = await getLiveKitToken(
+        currentRoomName,
+        displayName,
+        user.user_metadata?.avatar_url ?? null,
+      );
       setLivekitToken(token);
       setCallState("connected");
       setMinimized(true);

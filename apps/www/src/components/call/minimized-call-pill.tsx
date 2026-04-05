@@ -63,12 +63,7 @@ function PillControls() {
               {remoteUser?.name}
             </span>
             <div className="flex items-center gap-1.5">
-              <RemoteMicWaveform
-                barCount={4}
-                className="h-3"
-                gapPx={2}
-                barClassName="w-[2px]"
-              />
+              <RemoteMicWaveform />
               <PillTimer />
             </div>
           </div>

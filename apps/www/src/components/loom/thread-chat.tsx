@@ -381,6 +381,8 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
       body: JSON.stringify({
         roomName,
         participantName: displayName,
+        avatarUrl: (user as { user_metadata?: { avatar_url?: string } }).user_metadata
+          ?.avatar_url ?? null,
       }),
     })
 

@@ -38,15 +38,19 @@ export function Chat({ conversation, isMobile }: ChatProps) {
       });
     });
 
-    const unsubscribe = subscribeToMessages(conversation.id, (message) => {
-      addMessage(message);
-      
-      if (message.sender_id !== user.id) {
-        markMessagesAsRead(conversation.id, user.id).then(() => {
-          useChatStore.getState().setUnreadCount(conversation.id, 0);
-        });
-      }
-    });
+    const unsubscribe = subscribeToMessages(
+      conversation.id,
+      (message) => {
+        addMessage(message);
+
+        if (message.sender_id !== user.id) {
+          markMessagesAsRead(conversation.id, user.id).then(() => {
+            useChatStore.getState().setUnreadCount(conversation.id, 0);
+          });
+        }
+      },
+      { channelScope: "active-chat" },
+    );
 
     const channel = subscribeToTypingIndicator(
       conversation.id,

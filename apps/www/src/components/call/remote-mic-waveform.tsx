@@ -5,11 +5,9 @@ import { Track } from "livekit-client";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-function useRemoteMicWaveformLevels(barCount: number): number[] {
+function useRemoteMicEnergy(): number {
   const participants = useRemoteParticipants();
-  const [levels, setLevels] = useState(() =>
-    Array.from({ length: barCount }, () => 0.12),
-  );
+  const [energy, setEnergy] = useState(0);
 
   const first = participants[0];
   const micPub = first?.getTrackPublication(Track.Source.Microphone);
@@ -18,7 +16,7 @@ function useRemoteMicWaveformLevels(barCount: number): number[] {
 
   useEffect(() => {
     if (!mediaTrack || mediaTrack.readyState === "ended" || muted) {
-      setLevels(Array.from({ length: barCount }, () => 0.12));
+      setEnergy(0);
       return;
     }
 
@@ -46,23 +44,20 @@ function useRemoteMicWaveformLevels(barCount: number): number[] {
     const data = new Uint8Array(bufferLength);
     let raf = 0;
     let lastSet = 0;
+    let smooth = 0;
 
     const tick = () => {
       analyser.getByteFrequencyData(data);
-      const binsPerBar = Math.max(1, Math.ceil(bufferLength / barCount));
-      const next: number[] = [];
-      for (let b = 0; b < barCount; b++) {
-        let sum = 0;
-        const start = b * binsPerBar;
-        const end = Math.min(start + binsPerBar, bufferLength);
-        for (let i = start; i < end; i++) sum += data[i] ?? 0;
-        const avg = sum / Math.max(1, end - start) / 255;
-        next.push(Math.min(1, Math.pow(avg, 0.65) * 3.2));
-      }
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) sum += data[i] ?? 0;
+      const avg = sum / bufferLength / 255;
+      const instant = Math.min(1, Math.pow(avg, 0.65) * 3.2);
+      smooth = smooth * 0.72 + instant * 0.28;
+
       const now = performance.now();
       if (now - lastSet >= 45) {
         lastSet = now;
-        setLevels(next);
+        setEnergy(smooth);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -75,39 +70,31 @@ function useRemoteMicWaveformLevels(barCount: number): number[] {
       silent.disconnect();
       ctx.close();
     };
-  }, [mediaTrack?.id, muted, mediaTrack?.readyState, barCount]);
+  }, [mediaTrack?.id, muted, mediaTrack?.readyState]);
 
-  return levels;
+  return energy;
 }
 
-export function RemoteMicWaveform({
-  barCount,
-  className,
-  barClassName,
-  gapPx = 3,
-}: {
-  barCount: number;
-  className?: string;
-  barClassName?: string;
-  /** Tighter bars for minimized pill */
-  gapPx?: number;
-}) {
-  const levels = useRemoteMicWaveformLevels(barCount);
-  const gapStyle = { gap: gapPx };
+/** Single green dot whose scale/opacity follows the remote mic (no bar graph). */
+export function RemoteMicWaveform({ className }: { className?: string }) {
+  const energy = useRemoteMicEnergy();
+  const scale = 0.65 + energy * 0.9;
+  const opacity = 0.3 + energy * 0.7;
 
   return (
-    <div className={cn("flex items-end", className)} style={gapStyle}>
-      {levels.map((level, i) => (
-        <div
-          key={i}
-          className={cn("w-[3px] rounded-full bg-green-400", barClassName)}
-          style={{
-            height: `${Math.max(20, level * 100)}%`,
-            minHeight: 3,
-            transition: "height 45ms ease-out",
-          }}
-        />
-      ))}
-    </div>
+    <span
+      className={cn(
+        "inline-block shrink-0 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]",
+        className,
+      )}
+      style={{
+        width: "0.35rem",
+        height: "0.35rem",
+        transform: `scale(${scale})`,
+        opacity,
+        transition: "transform 55ms ease-out, opacity 55ms ease-out",
+      }}
+      aria-hidden
+    />
   );
 }
