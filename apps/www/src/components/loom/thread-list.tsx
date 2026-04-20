@@ -10,13 +10,17 @@ import {
   ChevronLeft,
   Camera,
   Check,
+  CheckCheck,
+  Copy,
   Loader2,
   Video,
   ChevronRight,
   FolderPlus,
   MoreHorizontal,
+  Pencil,
   Plus,
   Folder,
+  Trash2,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -34,18 +38,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '../ui/context-menu'
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+import { UnreadBadge } from '../ui/unread-badge'
 import { useAuth } from '@/hooks/useAuth'
 import useChatStore from '@/hooks/useChatStore'
 import { updateLoom, uploadLoomIcon } from '@/lib/services/looms'
 import {
+  createThread,
   createThreadFolder,
+  deleteThread,
   deleteThreadFolder,
+  markThreadMessagesAsRead,
   updateThread,
   updateThreadFolder,
 } from '@/lib/services/threads'
-import type { Loom, Thread, ThreadFolder } from '@/app/data'
+import type { Loom, Thread, ThreadCategory, ThreadFolder } from '@/app/data'
 import { FolderNameCard } from '@/components/loom/folder-name-card'
 import {
   THREAD_FOLDER_NAME_MAX_CHARS,
@@ -116,9 +131,11 @@ interface ThreadListProps {
   threads: Thread[]
   threadFolders: ThreadFolder[]
   selectedThreadId: string | null
+  /** Map of thread id → unread count. Drives the red badge next to each thread. */
+  threadUnreadCounts?: Record<string, number>
   onThreadSelect: (threadId: string) => void
-  /** Optional folder to create the new thread inside */
-  onCreateThread: (folderId?: string | null) => void
+  /** Optional folder to create the new thread inside, and an optional default category. */
+  onCreateThread: (folderId?: string | null, category?: ThreadCategory) => void
   onShowMembers: () => void
   loading?: boolean
   isCollapsed?: boolean
@@ -135,6 +152,7 @@ export function ThreadList({
   threads,
   threadFolders,
   selectedThreadId,
+  threadUnreadCounts,
   onThreadSelect,
   onCreateThread,
   onShowMembers,
@@ -517,31 +535,41 @@ export function ThreadList({
               <div key={i} className="h-8 w-8 animate-pulse rounded bg-muted" />
             ))
           ) : (
-            collapsedThreadOrder.map((thread) => (
-              <TooltipProvider key={thread.id}>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => onThreadSelect(thread.id)}
-                      className={cn(
-                        buttonVariants({ variant: "ghost", size: "icon" }),
-                        "h-8 w-8 shrink-0",
-                        selectedThreadId === thread.id && "bg-primary/10",
-                      )}
-                    >
-                      {thread.category === "voice" ? (
-                        <Video size={14} />
-                      ) : thread.type === "private" ? (
-                        <Lock size={14} />
-                      ) : (
-                        <LineSquiggle size={14} />
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">{thread.name}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ))
+            collapsedThreadOrder.map((thread) => {
+              const unread = threadUnreadCounts?.[thread.id] ?? 0
+              const showBadge = unread > 0 && selectedThreadId !== thread.id
+              return (
+                <TooltipProvider key={thread.id}>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <div className="relative">
+                        <button
+                          onClick={() => onThreadSelect(thread.id)}
+                          className={cn(
+                            buttonVariants({ variant: "ghost", size: "icon" }),
+                            "h-8 w-8 shrink-0",
+                            selectedThreadId === thread.id && "bg-primary/10",
+                          )}
+                        >
+                          {thread.category === "voice" ? (
+                            <Video size={14} />
+                          ) : thread.type === "private" ? (
+                            <Lock size={14} />
+                          ) : (
+                            <LineSquiggle size={14} />
+                          )}
+                        </button>
+                        <UnreadBadge
+                          count={showBadge ? unread : 0}
+                          className="absolute -top-1 -right-1"
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{thread.name}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )
+            })
           )}
         </div>
 
@@ -663,8 +691,10 @@ export function ThreadList({
                       voiceCallParticipantsByThreadId[thread.id]
                     }
                     selected={selectedThreadId === thread.id}
+                    unreadCount={threadUnreadCounts?.[thread.id] ?? 0}
                     onSelect={() => onThreadSelect(thread.id)}
                     onDragEnd={() => setDragOverDropId(null)}
+                    onCreateThread={onCreateThread}
                   />
                 ))}
               </div>
@@ -756,8 +786,10 @@ export function ThreadList({
                               voiceCallParticipantsByThreadId[thread.id]
                             }
                             selected={selectedThreadId === thread.id}
+                            unreadCount={threadUnreadCounts?.[thread.id] ?? 0}
                             onSelect={() => onThreadSelect(thread.id)}
                             onDragEnd={() => setDragOverDropId(null)}
+                            onCreateThread={onCreateThread}
                           />
                         ))
                       )}
@@ -815,8 +847,10 @@ export function ThreadList({
                               voiceCallParticipantsByThreadId[thread.id]
                             }
                             selected={selectedThreadId === thread.id}
+                            unreadCount={threadUnreadCounts?.[thread.id] ?? 0}
                             onSelect={() => onThreadSelect(thread.id)}
                             onDragEnd={() => setDragOverDropId(null)}
+                            onCreateThread={onCreateThread}
                           />
                         ))}
                       </div>
@@ -839,8 +873,10 @@ export function ThreadList({
                         voiceCallParticipantsByThreadId[thread.id]
                       }
                       selected={selectedThreadId === thread.id}
+                      unreadCount={threadUnreadCounts?.[thread.id] ?? 0}
                       onSelect={() => onThreadSelect(thread.id)}
                       onDragEnd={() => setDragOverDropId(null)}
+                      onCreateThread={onCreateThread}
                     />
                   ))}
                 </div>
@@ -1046,17 +1082,27 @@ function ThreadItem({
   thread,
   voiceCallParticipants,
   selected,
+  unreadCount = 0,
   onSelect,
   onDragEnd,
+  onCreateThread,
 }: {
   thread: Thread
   voiceCallParticipants?: VoiceCallParticipantPreview[]
   selected: boolean
+  /** Unread message count for this thread; 0 hides the badge. */
+  unreadCount?: number
   onSelect: () => void
   onDragEnd?: () => void
+  /** Bubble up a "New Thread" request with this thread's folder + category. */
+  onCreateThread?: (folderId?: string | null, category?: ThreadCategory) => void
 }) {
   const { user } = useAuth()
   const updateThreadInStore = useChatStore((s) => s.updateThread)
+  const addThreadToStore = useChatStore((s) => s.addThread)
+  const removeThreadFromStore = useChatStore((s) => s.removeThread)
+  const markThreadRead = useChatStore((s) => s.markThreadRead)
+  const setThreadUnreadCount = useChatStore((s) => s.setThreadUnreadCount)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [editName, setEditName] = useState(thread.name)
   const [saving, setSaving] = useState(false)
@@ -1096,14 +1142,71 @@ function ThreadItem({
     setSettingsOpen(false)
   }
 
+  const hasUnread = unreadCount > 0 && !selected
+
+  // ---- Context menu actions ----
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return
+    // Optimistic: clear the thread badge AND decrement the loom's unread
+    // count in the same render so the rail dot disappears instantly. The
+    // realtime subscription reconciles if anything raced.
+    markThreadRead(thread.id)
+    const ok = await markThreadMessagesAsRead(thread.id, String(user.id))
+    if (!ok) {
+      // Best-effort restore of just the thread badge; a full loom restore
+      // isn't needed because the refresh tick will pull fresh numbers.
+      setThreadUnreadCount(thread.id, unreadCount)
+    }
+  }
+
+  const handleDuplicate = async () => {
+    if (!user) return
+    try {
+      const copy = await createThread({
+        loomId: thread.loom_id,
+        name: `${thread.name} (copy)`.slice(0, THREAD_NAME_MAX_CHARS),
+        description: thread.description || undefined,
+        type: thread.type,
+        category: thread.category,
+        createdBy: String(user.id),
+        folderId: thread.folder_id ?? null,
+      })
+      if (copy) addThreadToStore(copy)
+    } catch (err) {
+      console.error('Failed to duplicate thread:', err)
+    }
+  }
+
+  const handleCreateSimilar = () => {
+    onCreateThread?.(thread.folder_id ?? null, thread.category)
+  }
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      `Delete thread "${thread.name}"? This cannot be undone.`,
+    )
+    if (!confirmed) return
+    const ok = await deleteThread(thread.id)
+    if (ok) removeThreadFromStore(thread.id)
+  }
+
+  const createLabel =
+    thread.category === 'voice' ? 'New Call Thread' : 'New Text Thread'
+  const CreateIcon = thread.category === 'voice' ? Video : LineSquiggle
+
   return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
     <div
       className={cn(
         'group/thread-row flex items-center gap-0.5 rounded-md pr-1 text-sm transition-colors',
         selected
           ? 'bg-primary/10 text-foreground'
-          : 'text-muted-foreground hover:bg-muted',
-        selected && 'font-medium',
+          : hasUnread
+            ? 'text-foreground hover:bg-muted'
+            : 'text-muted-foreground hover:bg-muted',
+        (selected || hasUnread) && 'font-medium',
       )}
     >
       <button
@@ -1124,6 +1227,12 @@ function ThreadItem({
           <Video size={14} className="shrink-0" />
         ) : thread.type === "private" ? (
           <Lock size={14} className="shrink-0" />
+        ) : hasUnread ? (
+          // Regular text threads: replace the leading squiggle with the red
+          // count badge so the unread state is the first thing your eye lands
+          // on. Voice/private threads keep their icons (which communicate
+          // thread type) and show a trailing badge instead.
+          <UnreadBadge count={unreadCount} className="shrink-0" />
         ) : (
           <LineSquiggle size={14} className="shrink-0" />
         )}
@@ -1131,6 +1240,10 @@ function ThreadItem({
         {thread.is_pinned && (
           <Pin size={10} className="shrink-0 text-muted-foreground" />
         )}
+        {hasUnread &&
+          (thread.category === "voice" || thread.type === "private") && (
+            <UnreadBadge count={unreadCount} className="ml-auto" />
+          )}
       </button>
 
       {thread.category === 'voice' &&
@@ -1207,5 +1320,38 @@ function ThreadItem({
         </PopoverContent>
       </Popover>
     </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        <ContextMenuItem
+          disabled={unreadCount === 0}
+          onSelect={() => void handleMarkAllAsRead()}
+        >
+          <CheckCheck size={14} className="mr-2" />
+          Mark All As Read
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => setSettingsOpen(true)}>
+          <Pencil size={14} className="mr-2" />
+          Edit Thread
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => void handleDuplicate()}>
+          <Copy size={14} className="mr-2" />
+          Duplicate Thread
+        </ContextMenuItem>
+        {onCreateThread && (
+          <ContextMenuItem onSelect={handleCreateSimilar}>
+            <CreateIcon size={14} className="mr-2" />
+            {createLabel}
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          className="text-destructive focus:text-destructive"
+          onSelect={() => void handleDelete()}
+        >
+          <Trash2 size={14} className="mr-2" />
+          Delete Thread
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

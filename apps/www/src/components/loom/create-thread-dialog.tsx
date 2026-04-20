@@ -15,6 +15,7 @@ interface CreateThreadDialogProps {
   onThreadCreated: (thread: Thread) => void
   threadFolders?: ThreadFolder[]
   defaultFolderId?: string | null
+  defaultCategory?: ThreadCategory
 }
 
 export function CreateThreadDialog({
@@ -24,12 +25,13 @@ export function CreateThreadDialog({
   onThreadCreated,
   threadFolders = [],
   defaultFolderId = null,
+  defaultCategory = 'text',
 }: CreateThreadDialogProps) {
   const { user } = useAuth()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [type, setType] = useState<ThreadType>('open')
-  const [category, setCategory] = useState<ThreadCategory>('text')
+  const [category, setCategory] = useState<ThreadCategory>(defaultCategory)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [createInFolderId, setCreateInFolderId] = useState<string | null>(null)
@@ -37,8 +39,9 @@ export function CreateThreadDialog({
   useEffect(() => {
     if (open) {
       setCreateInFolderId(defaultFolderId ?? null)
+      setCategory(defaultCategory)
     }
-  }, [open, defaultFolderId])
+  }, [open, defaultFolderId, defaultCategory])
 
   const handleCreate = async () => {
     if (!user || !name.trim()) return

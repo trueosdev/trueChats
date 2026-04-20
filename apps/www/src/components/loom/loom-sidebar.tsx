@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from '../ui/tooltip'
+import { UnreadBadge } from '../ui/unread-badge'
 import type { Loom } from '@/app/data'
 
 interface LoomSidebarProps {
@@ -79,7 +80,7 @@ export function LoomSidebar({
           const LoomIcon = Icon || FallbackIcon
           const isSelected = viewMode === 'looms' && selectedLoomId === loom.id
           const hasImageIcon = Boolean(loom.icon_url)
-          const hasUnread = (loomUnreadCounts[loom.id] || 0) > 0
+          const unreadCount = loomUnreadCounts[loom.id] || 0
 
           return (
             <TooltipProvider key={loom.id}>
@@ -113,9 +114,10 @@ export function LoomSidebar({
                         <LoomIcon size={22} />
                       )}
                     </button>
-                    {hasUnread && (
-                      <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
-                    )}
+                    <UnreadBadge
+                      count={unreadCount}
+                      className="absolute -top-1 -right-1"
+                    />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">

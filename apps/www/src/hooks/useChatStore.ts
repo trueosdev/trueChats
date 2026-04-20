@@ -29,6 +29,7 @@ interface State {
   threadMessages: ThreadMessage[];
   loomLoading: boolean;
   loomUnreadCounts: Record<string, number>;
+  threadUnreadCounts: Record<string, number>;
 }
 
 interface Actions {
@@ -70,6 +71,15 @@ interface Actions {
   setLoomLoading: (loading: boolean) => void;
   setLoomUnreadCounts: (counts: Record<string, number>) => void;
   setLoomUnreadCount: (loomId: string, count: number) => void;
+  setThreadUnreadCounts: (counts: Record<string, number>) => void;
+  setThreadUnreadCount: (threadId: string, count: number) => void;
+  /**
+   * Clears a thread's unread badge AND optimistically decrements its parent
+   * loom's unread count by the same amount. Use this instead of calling
+   * `setThreadUnreadCount(id, 0)` + `setLoomUnreadCount` separately so the rail
+   * dot and thread row update in the same render (no waiting on realtime).
+   */
+  markThreadRead: (threadId: string) => void;
 }
 
 const useChatStore = create<State & Actions>()((set) => ({
@@ -90,6 +100,7 @@ const useChatStore = create<State & Actions>()((set) => ({
   threadMessages: [],
   loomLoading: false,
   loomUnreadCounts: {},
+  threadUnreadCounts: {},
 
   setInput: (input) => set({ input }),
   handleInputChange: (
@@ -205,6 +216,27 @@ const useChatStore = create<State & Actions>()((set) => ({
   setLoomUnreadCount: (loomId, count) => set((state) => ({
     loomUnreadCounts: { ...state.loomUnreadCounts, [loomId]: count },
   })),
+  setThreadUnreadCounts: (counts) => set({ threadUnreadCounts: counts }),
+  setThreadUnreadCount: (threadId, count) => set((state) => ({
+    threadUnreadCounts: { ...state.threadUnreadCounts, [threadId]: count },
+  })),
+  markThreadRead: (threadId) => set((state) => {
+    const prev = state.threadUnreadCounts[threadId] || 0;
+    if (prev === 0) return state;
+    const thread = state.threads.find((t) => t.id === threadId);
+    const loomId = thread?.loom_id;
+    const nextLoomCounts = loomId
+      ? {
+          ...state.loomUnreadCounts,
+          // clamp to 0: the server-side refresh reconciles any drift.
+          [loomId]: Math.max(0, (state.loomUnreadCounts[loomId] || 0) - prev),
+        }
+      : state.loomUnreadCounts;
+    return {
+      threadUnreadCounts: { ...state.threadUnreadCounts, [threadId]: 0 },
+      loomUnreadCounts: nextLoomCounts,
+    };
+  }),
 }));
 
 export default useChatStore;

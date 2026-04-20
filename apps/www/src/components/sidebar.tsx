@@ -17,6 +17,7 @@ import { Avatar } from "./ui/avatar";
 import { Message } from "@/app/data";
 import { UserAvatarMenu } from "./user-avatar-menu";
 import { Skeleton } from "./ui/skeleton";
+import { UnreadBadge } from "./ui/unread-badge";
 import { NewChatDialog } from "./new-chat-dialog";
 import {
   DropdownMenu,
@@ -94,6 +95,9 @@ interface SidebarProps {
     messages: Message[];
     avatar: string;
     variant: "secondary" | "ghost";
+    /** Number of unread messages in this conversation. 0 means no badge. */
+    unreadCount?: number;
+    /** @deprecated prefer `unreadCount`; kept for callers that still pass a bool. */
     hasUnread?: boolean;
   }[];
   isMobile: boolean;
@@ -170,9 +174,10 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                     )}
                   >
                     <Mailbox size={23} />
-                    {pendingRequestCount > 0 && (
-                      <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
-                    )}
+                    <UnreadBadge
+                      count={pendingRequestCount}
+                      className="absolute -top-1 -right-1"
+                    />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -246,9 +251,10 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                   )}
                 >
                   <Mailbox size={23} />
-                  {pendingRequestCount > 0 && (
-                    <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
-                  )}
+                  <UnreadBadge
+                    count={pendingRequestCount}
+                    className="absolute -top-1 -right-1"
+                  />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
@@ -306,9 +312,10 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                           />
                         </Avatar>
                       </div>
-                      {chat.hasUnread && (
-                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
-                      )}
+                      <UnreadBadge
+                        count={chat.unreadCount ?? (chat.hasUnread ? 1 : 0)}
+                        className="absolute -top-1 -right-1"
+                      />
                       <span className="sr-only">{chat.name}</span>
                     </button>
                   </div>
@@ -343,9 +350,10 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                     alt={chat.name}
                   />
                 </Avatar>
-                {chat.hasUnread && (
-                  <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-white border border-background rounded-full" />
-                )}
+                <UnreadBadge
+                  count={chat.unreadCount ?? (chat.hasUnread ? 1 : 0)}
+                  className="absolute -top-1 -right-1"
+                />
               </div>
               <div className="flex flex-col max-w-28 text-left">
                 <span className="truncate">{chat.name}</span>

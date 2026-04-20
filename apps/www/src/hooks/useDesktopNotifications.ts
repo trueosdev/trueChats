@@ -123,6 +123,27 @@ export function useDesktopNotifications() {
   const selectedThreadIdRef = useRef(selectedThreadId);
   const conversationsRef = useRef(conversations);
   const permissionRef = useRef<NotificationPermission>("default");
+  const alertAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Preload the custom notification sound so the first ping isn't delayed by
+  // an on-demand network fetch. Electron's native Notification only supports
+  // built-in macOS system sounds via its `sound` field, so we play a custom
+  // `.wav` from the renderer and mark the OS notification `silent: true` to
+  // avoid doubling up.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const audio = new Audio("/alert.wav");
+      audio.preload = "auto";
+      audio.volume = 0.6;
+      alertAudioRef.current = audio;
+    } catch {
+      alertAudioRef.current = null;
+    }
+    return () => {
+      alertAudioRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
@@ -222,6 +243,21 @@ export function useDesktopNotifications() {
     const api = getElectronAPI();
     if (!api?.notify) return;
 
+    const playAlertSound = () => {
+      const audio = alertAudioRef.current;
+      if (!audio) return;
+      try {
+        // Reset so rapid-fire messages still ping each time.
+        audio.currentTime = 0;
+        void audio.play().catch(() => {
+          // Autoplay may be blocked until the user interacts with the window;
+          // safe to ignore.
+        });
+      } catch {
+        // Some environments throw synchronously on play(); ignore.
+      }
+    };
+
     const notify = (opts: {
       title: string;
       subtitle?: string;
@@ -239,9 +275,9 @@ export function useDesktopNotifications() {
         }
         return;
       }
-      void api.notify?.(opts);
-      // macOS: a single, non-sticky bounce draws the eye without being obnoxious.
-      if (IS_MAC && api.bounceDock) void api.bounceDock("informational");
+      playAlertSound();
+      // Silence the OS sound so it doesn't double up with our custom alert.wav.
+      void api.notify?.({ ...opts, silent: true });
     };
 
     // Small caches so we don't re-query sender/thread/loom info for every message.

@@ -494,6 +494,40 @@ export async function getUnreadLoomCounts(
   return counts
 }
 
+/**
+ * Returns the unread count per thread_id for the given user, considering only
+ * threads in the provided list. Mirrors `getUnreadLoomCounts` but grouped by
+ * thread instead of loom. Uses the same read_at IS NULL + sender != user
+ * semantics the rest of the app relies on.
+ */
+export async function getUnreadThreadCounts(
+  userId: string,
+  threadIds: string[],
+): Promise<Record<string, number>> {
+  if (threadIds.length === 0) return {}
+
+  const { data, error } = await supabase
+    .from('thread_messages')
+    .select('thread_id')
+    .in('thread_id', threadIds)
+    .is('read_at', null)
+    .neq('sender_id', userId)
+
+  if (error) {
+    console.error('Error fetching thread unread counts:', error)
+    return {}
+  }
+
+  const counts: Record<string, number> = {}
+  ;(data || []).forEach((row: { thread_id?: string | null }) => {
+    const threadId = row?.thread_id
+    if (!threadId) return
+    counts[threadId] = (counts[threadId] || 0) + 1
+  })
+
+  return counts
+}
+
 // --- Realtime ---
 
 export function subscribeToThreadMessages(

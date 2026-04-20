@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { getConversations, subscribeToConversations } from "@/lib/services/conversations";
 import useChatStore from "@/hooks/useChatStore";
-import type { ConversationWithUser, Thread } from "@/app/data";
+import type { ConversationWithUser, Thread, ThreadCategory } from "@/app/data";
 import { PendingChatsPage } from "../pending-chats-page";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { getUnreadCounts, subscribeToMessages } from "@/lib/services/messages";
@@ -33,6 +33,7 @@ import {
   subscribeToThreads,
   subscribeToThreadFolders,
   getUnreadLoomCounts,
+  getUnreadThreadCounts,
 } from "@/lib/services/threads";
 import { Snail } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
@@ -62,6 +63,8 @@ export function ChatLayout({
   const [createThreadDefaultFolderId, setCreateThreadDefaultFolderId] = useState<
     string | null
   >(null);
+  const [createThreadDefaultCategory, setCreateThreadDefaultCategory] =
+    useState<ThreadCategory>("text");
   const [showLoomMembers, setShowLoomMembers] = useState(false);
   const isSidebarCollapsed = isCollapsed || isMobile;
 
@@ -76,6 +79,7 @@ export function ChatLayout({
   const threadFolders = useChatStore((state) => state.threadFolders);
   const selectedThreadId = useChatStore((state) => state.selectedThreadId);
   const loomUnreadCounts = useChatStore((state) => state.loomUnreadCounts);
+  const threadUnreadCounts = useChatStore((state) => state.threadUnreadCounts);
   const loomThreadsLoading = useChatStore((state) => state.loomLoading);
 
   const setConversations = useChatStore((state) => state.setConversations);
@@ -95,6 +99,8 @@ export function ChatLayout({
   const setLoomLoading = useChatStore((state) => state.setLoomLoading);
   const addThread = useChatStore((state) => state.addThread);
   const setLoomUnreadCounts = useChatStore((state) => state.setLoomUnreadCounts);
+  const setThreadUnreadCounts = useChatStore((state) => state.setThreadUnreadCounts);
+  const markThreadRead = useChatStore((state) => state.markThreadRead);
 
   useDesktopNotifications();
 
@@ -287,23 +293,35 @@ export function ChatLayout({
     };
   }, [user, conversations, selectedConversationId, setUnreadCount]);
 
-  // Keep Loom unread counts in sync for rail dots
+  // Keep Loom + Thread unread counts in sync for rail + thread-list badges.
+  // One wildcard channel on thread_messages refreshes both maps together so
+  // rail dots, per-thread badges, and the Electron dock badge all agree.
+  const threadIdsKey = threads.map((t) => t.id).sort().join(",");
   useEffect(() => {
     if (!user || looms.length === 0) {
       setLoomUnreadCounts({});
+      setThreadUnreadCounts({});
       return;
     }
 
     let cancelled = false;
     const loomIds = looms.map((l) => l.id);
+    const threadIds = threadIdsKey ? threadIdsKey.split(",") : [];
 
-    const refreshLoomUnread = async () => {
-      const counts = await getUnreadLoomCounts(user.id, loomIds);
-      if (!cancelled) setLoomUnreadCounts(counts);
+    const refreshUnread = async () => {
+      const [loomCounts, threadCounts] = await Promise.all([
+        getUnreadLoomCounts(user.id, loomIds),
+        threadIds.length > 0
+          ? getUnreadThreadCounts(user.id, threadIds)
+          : Promise.resolve<Record<string, number>>({}),
+      ]);
+      if (cancelled) return;
+      setLoomUnreadCounts(loomCounts);
+      setThreadUnreadCounts(threadCounts);
     };
 
-    refreshLoomUnread();
-    const interval = window.setInterval(refreshLoomUnread, 10000);
+    refreshUnread();
+    const interval = window.setInterval(refreshUnread, 10000);
     const channel = supabase
       .channel(`loom-unread-dot:${user.id}`)
       .on(
@@ -314,7 +332,7 @@ export function ChatLayout({
           table: "thread_messages",
         },
         () => {
-          void refreshLoomUnread();
+          void refreshUnread();
         },
       )
       .subscribe();
@@ -324,7 +342,20 @@ export function ChatLayout({
       window.clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [user, looms, selectedThreadId, setLoomUnreadCounts]);
+    // NOTE: `selectedThreadId` is intentionally NOT a dep. Including it causes
+    // this effect to tear down + restart on every thread switch, which fires a
+    // fresh `refreshUnread()` BEFORE ThreadChat's mark-as-read RPC lands in the
+    // DB — overwriting the optimistic clear from `markThreadRead` with stale
+    // counts and making the loom rail badge stick. The realtime subscription
+    // below already reconciles counts whenever `thread_messages` changes, so
+    // we don't need a re-subscribe on thread selection.
+  }, [
+    user,
+    looms,
+    threadIdsKey,
+    setLoomUnreadCounts,
+    setThreadUnreadCounts,
+  ]);
 
   if (authLoading) {
     return (
@@ -401,9 +432,18 @@ export function ChatLayout({
         threads={threads}
         threadFolders={threadFolders}
         selectedThreadId={selectedThreadId}
-        onThreadSelect={(threadId) => setSelectedThreadId(threadId)}
-        onCreateThread={(folderId) => {
+        threadUnreadCounts={threadUnreadCounts}
+        onThreadSelect={(threadId) => {
+          setSelectedThreadId(threadId);
+          // Optimistic clear: wipes the thread's badge AND decrements the
+          // loom's count in the same render so the rail dot disappears
+          // instantly. `ThreadChat` still runs the server-side mark-as-read
+          // and the realtime refresh reconciles any drift.
+          markThreadRead(threadId);
+        }}
+        onCreateThread={(folderId, category) => {
           setCreateThreadDefaultFolderId(folderId ?? null);
+          setCreateThreadDefaultCategory(category ?? "text");
           setShowCreateThread(true);
         }}
         onShowMembers={() => setShowLoomMembers(true)}
@@ -427,7 +467,7 @@ export function ChatLayout({
           }] : [],
           avatar: getAvatarUrl(conv.other_user?.avatar_url),
           variant: selectedConversationId === conv.id ? "secondary" : "ghost",
-          hasUnread: (unreadCounts[conv.id] || 0) > 0,
+          unreadCount: unreadCounts[conv.id] || 0,
         }))}
         isMobile={isMobile}
         loading={useChatStore.getState().loading}
@@ -579,11 +619,15 @@ export function ChatLayout({
             open={showCreateThread}
             onOpenChange={(open) => {
               setShowCreateThread(open);
-              if (!open) setCreateThreadDefaultFolderId(null);
+              if (!open) {
+                setCreateThreadDefaultFolderId(null);
+                setCreateThreadDefaultCategory("text");
+              }
             }}
             loomId={selectedLoomId}
             threadFolders={threadFolders}
             defaultFolderId={createThreadDefaultFolderId}
+            defaultCategory={createThreadDefaultCategory}
             onThreadCreated={handleThreadCreated}
           />
         )}
