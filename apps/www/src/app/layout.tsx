@@ -17,6 +17,7 @@ import { ActiveCallView } from "@/components/call/active-call-view";
 import { ThreadCallProvider } from "@/components/call/thread-call-provider";
 import { ThreadCallLiveKitShell } from "@/components/call/thread-call-livekit-shell";
 import { ElectronTitlebar } from "@/components/electron-titlebar";
+import { ElectronUpdateBanner } from "@/components/electron-update-banner";
 
 const questrial = Questrial({
   weight: "400",
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body className={questrial.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ElectronTitlebar />
+          <ElectronUpdateBanner />
           <AuthProvider>
             <CallProvider>
               <ThreadCallProvider>

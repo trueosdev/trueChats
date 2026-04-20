@@ -235,6 +235,42 @@ ipcMain.handle("bounce-dock", (_event, type) => {
   }
 });
 
+function broadcastToRenderer(channel, payload) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed()) continue;
+    try {
+      win.webContents.send(channel, payload);
+    } catch (e) {
+      console.warn("[electron] broadcast failed:", channel, e?.message ?? e);
+    }
+  }
+}
+
+/**
+ * Download the pending update (after `update-available`) and restart into the new build.
+ * Renderer should only call this after the user confirms.
+ */
+ipcMain.handle("electron-download-and-install-update", async () => {
+  if (!app.isPackaged) {
+    return { ok: false, error: "Updates only apply to packaged builds." };
+  }
+  try {
+    await autoUpdater.downloadUpdate();
+    setImmediate(() => {
+      try {
+        autoUpdater.quitAndInstall();
+      } catch (e) {
+        console.warn("[electron] quitAndInstall failed:", e?.message ?? e);
+      }
+    });
+    return { ok: true };
+  } catch (e) {
+    const msg = e?.message ?? String(e);
+    console.warn("[electron] downloadUpdate failed:", msg);
+    return { ok: false, error: msg };
+  }
+});
+
 /**
  * Permissions we allow for our own UI.
  * - media / display-capture / speaker-selection: LiveKit + getUserMedia + getDisplayMedia.
@@ -377,10 +413,11 @@ app.whenReady().then(async () => {
 
   // In packaged builds, check for updates from the configured provider.
   if (app.isPackaged) {
-    autoUpdater.autoDownload = true;
+    autoUpdater.autoDownload = false;
 
-    autoUpdater.on("update-downloaded", () => {
-      autoUpdater.quitAndInstall();
+    autoUpdater.on("update-available", (info) => {
+      const version = info?.version != null ? String(info.version) : "";
+      broadcastToRenderer("app-update-available", { version });
     });
 
     autoUpdater.checkForUpdates().catch((err) => {

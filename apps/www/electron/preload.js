@@ -11,4 +11,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setBadgeCount: (count) => ipcRenderer.invoke("set-badge-count", count),
   /** macOS-only: bounce the dock icon. `type` is "informational" (default) or "critical". */
   bounceDock: (type) => ipcRenderer.invoke("bounce-dock", type),
+  /**
+   * Subscribe to `update-available` from electron-updater. Returns an unsubscribe function.
+   * @param {(payload: { version: string }) => void} callback
+   */
+  onUpdateAvailable: (callback) => {
+    const channel = "app-update-available";
+    const handler = (_event, payload) => {
+      callback(payload ?? { version: "" });
+    };
+    ipcRenderer.on(channel, handler);
+    return () => {
+      ipcRenderer.removeListener(channel, handler);
+    };
+  },
+  /** Download the pending update and restart the app (packaged builds only). */
+  downloadAndInstallUpdate: () => ipcRenderer.invoke("electron-download-and-install-update"),
 });
