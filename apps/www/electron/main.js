@@ -2,6 +2,8 @@ const {
   app,
   BrowserWindow,
   Menu,
+  Notification,
+  ipcMain,
   shell,
   session,
   systemPreferences,
@@ -12,6 +14,8 @@ const path = require("path");
 const iconPath = path.join(__dirname, "icons", "icon.png");
 
 const APP_NAME = "trueChats";
+// Windows uses this ID to group notifications/taskbar icons. Must be set before any Notification is shown.
+const APP_USER_MODEL_ID = "dev.trueos.chats";
 const PROD_URL = process.env.ELECTRON_START_URL || "https://chats.trueos.dev";
 
 function buildMenu() {
@@ -135,6 +139,85 @@ function createWindow() {
 }
 
 app.setName(APP_NAME);
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+}
+
+/**
+ * Focus the main window (restore if minimized). Used as the click handler on notifications
+ * so the user lands on the app when they click through.
+ */
+function focusMainWindow() {
+  const wins = BrowserWindow.getAllWindows();
+  if (wins.length === 0) return;
+  const win = wins[0];
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+/**
+ * Show a native OS notification. Safe to call on any platform; no-ops when unsupported.
+ * Payload: { title, subtitle?, body, silent? }
+ *
+ * `subtitle` only renders on macOS (displays between the title and body, bolder than body);
+ * on Windows/Linux it's silently ignored by Chromium's notification layer.
+ */
+function showNativeNotification(payload) {
+  try {
+    if (!Notification.isSupported()) return;
+    const isMac = process.platform === "darwin";
+    const { title, subtitle, body, silent } = payload || {};
+    const notification = new Notification({
+      title: title || APP_NAME,
+      ...(isMac && subtitle ? { subtitle } : {}),
+      body: body || "",
+      icon: iconPath,
+      silent: Boolean(silent),
+      // macOS: use the default system "new message" sound when not silent.
+      ...(isMac && !silent ? { sound: "default" } : {}),
+    });
+    notification.on("click", focusMainWindow);
+    notification.show();
+  } catch (e) {
+    console.warn("[electron] notification failed:", e?.message ?? e);
+  }
+}
+
+ipcMain.handle("notify", (_event, payload) => {
+  showNativeNotification(payload);
+  return true;
+});
+
+/**
+ * macOS dock badge: shows an unread count pill on the dock icon.
+ * Pass 0 (or negative) to clear. No-op on other platforms.
+ */
+ipcMain.handle("set-badge-count", (_event, count) => {
+  if (process.platform !== "darwin") return false;
+  const n = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  try {
+    app.dock?.setBadge?.(n > 0 ? String(n) : "");
+    return true;
+  } catch (e) {
+    console.warn("[electron] set-badge-count failed:", e?.message ?? e);
+    return false;
+  }
+});
+
+/**
+ * macOS dock bounce ("critical" = bounce until clicked, "informational" = one bounce).
+ * No-op on other platforms.
+ */
+ipcMain.handle("bounce-dock", (_event, type) => {
+  if (process.platform !== "darwin") return -1;
+  try {
+    return app.dock?.bounce?.(type === "critical" ? "critical" : "informational") ?? -1;
+  } catch (e) {
+    console.warn("[electron] bounce-dock failed:", e?.message ?? e);
+    return -1;
+  }
+});
 
 /** Permissions we allow for our own UI (LiveKit / getUserMedia / getDisplayMedia). */
 const GRANTED_PERMISSIONS = new Set([

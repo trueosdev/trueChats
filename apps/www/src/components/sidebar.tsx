@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SquarePen, Mailbox, ArrowDownToLine, Apple, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RAIL_WIDTH } from "@/lib/layout-constants";
@@ -107,6 +107,11 @@ interface SidebarProps {
 
 export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatCreated, onPendingChats, pendingRequestCount = 0, loading = false, customNav }: SidebarProps) {
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [isElectron, setIsElectron] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsElectron(Boolean((window as { electronAPI?: unknown }).electronAPI));
+  }, []);
 
   return (
     <div
@@ -119,33 +124,40 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
           <div className="flex items-center gap-2">
             <UserAvatarMenu />
 
-            <Popover open={newChatOpen} onOpenChange={setNewChatOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
-                    "h-9 w-9",
-                  )}
-                >
-                  <SquarePen size={20} />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                side="bottom"
-                align="start"
-                sideOffset={8}
-                className="w-auto p-0 border-0 bg-transparent shadow-none"
-              >
-                <NewChatDialog
-                  open={newChatOpen}
-                  onOpenChange={setNewChatOpen}
-                  onConversationCreated={(id) => {
-                    setNewChatOpen(false);
-                    onNewChatCreated?.(id);
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
+            <TooltipProvider>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Popover open={newChatOpen} onOpenChange={setNewChatOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={cn(
+                          buttonVariants({ variant: "ghost", size: "icon" }),
+                          "h-9 w-9",
+                        )}
+                      >
+                        <SquarePen size={20} />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="bottom"
+                      align="start"
+                      sideOffset={8}
+                      className="w-auto p-0 border-0 bg-transparent shadow-none"
+                    >
+                      <NewChatDialog
+                        open={newChatOpen}
+                        onOpenChange={setNewChatOpen}
+                        onConversationCreated={(id) => {
+                          setNewChatOpen(false);
+                          onNewChatCreated?.(id);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">New Message</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             <TooltipProvider>
               <Tooltip delayDuration={0}>
@@ -163,13 +175,13 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                     )}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
+                <TooltipContent side="bottom">
                   Pending Chats {pendingRequestCount > 0 && `(${pendingRequestCount})`}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
-            <DesktopDownloadMenu collapsed={false} />
+            {isElectron === false && <DesktopDownloadMenu collapsed={false} />}
           </div>
         </div>
       )}
@@ -182,39 +194,46 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                   <UserAvatarMenu />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="right">
+              <TooltipContent side="bottom">
                 Profile
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
-          <Popover open={!newChatOpen ? undefined : newChatOpen} onOpenChange={setNewChatOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon" }),
-                  "h-9 w-9 flex items-center justify-center",
-                )}
-              >
-                <SquarePen size={20} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="right"
-              align="start"
-              sideOffset={8}
-              className="w-auto p-0 border-0 bg-transparent shadow-none ml-2"
-            >
-              <NewChatDialog
-                open={newChatOpen}
-                onOpenChange={setNewChatOpen}
-                onConversationCreated={(id) => {
-                  setNewChatOpen(false);
-                  onNewChatCreated?.(id);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <TooltipProvider>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Popover open={!newChatOpen ? undefined : newChatOpen} onOpenChange={setNewChatOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        buttonVariants({ variant: "ghost", size: "icon" }),
+                        "h-9 w-9 flex items-center justify-center",
+                      )}
+                    >
+                      <SquarePen size={20} />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="right"
+                    align="start"
+                    sideOffset={8}
+                    className="w-auto p-0 border-0 bg-transparent shadow-none ml-2"
+                  >
+                    <NewChatDialog
+                      open={newChatOpen}
+                      onOpenChange={setNewChatOpen}
+                      onConversationCreated={(id) => {
+                        setNewChatOpen(false);
+                        onNewChatCreated?.(id);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">New Message</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <TooltipProvider>
             <Tooltip delayDuration={0}>
@@ -232,13 +251,13 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">
+              <TooltipContent side="bottom">
                 Pending Chats {pendingRequestCount > 0 && `(${pendingRequestCount})`}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
-          <DesktopDownloadMenu collapsed />
+          {isElectron === false && <DesktopDownloadMenu collapsed />}
         </div>
       )}
       {customNav ? (

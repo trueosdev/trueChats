@@ -36,6 +36,7 @@ import {
 } from "@/lib/services/threads";
 import { Snail } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { useDesktopNotifications } from "@/hooks/useDesktopNotifications";
 
 /** `react-resizable-panels` v4 treats numeric sizes as px; persisted layout uses % (0–100). */
 function panelDefaultSize(value: number): number | string {
@@ -94,6 +95,8 @@ export function ChatLayout({
   const setLoomLoading = useChatStore((state) => state.setLoomLoading);
   const addThread = useChatStore((state) => state.addThread);
   const setLoomUnreadCounts = useChatStore((state) => state.setLoomUnreadCounts);
+
+  useDesktopNotifications();
 
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
   const loomRailMeasureRef = useRef<HTMLDivElement | null>(null);
