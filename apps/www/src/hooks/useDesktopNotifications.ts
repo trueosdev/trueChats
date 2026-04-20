@@ -133,7 +133,7 @@ export function useDesktopNotifications() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const audio = new Audio("/alert.wav");
+      const audio = new Audio("/alert1.wav");
       audio.preload = "auto";
       audio.volume = 0.6;
       alertAudioRef.current = audio;
@@ -276,7 +276,7 @@ export function useDesktopNotifications() {
         return;
       }
       playAlertSound();
-      // Silence the OS sound so it doesn't double up with our custom alert.wav.
+      // Silence the OS sound so it doesn't double up with our custom alert1.wav.
       void api.notify?.({ ...opts, silent: true });
     };
 
