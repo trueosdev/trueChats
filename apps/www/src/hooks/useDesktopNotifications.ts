@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import useChatStore from "@/hooks/useChatStore";
@@ -31,6 +31,35 @@ const IS_MAC =
   typeof window !== "undefined" &&
   (window as unknown as { electronAPI?: ElectronAPI }).electronAPI?.platform ===
     "darwin";
+
+type NotificationPermission = "default" | "granted" | "denied" | "unsupported";
+
+/**
+ * Ensure the OS has granted us permission to post notifications. On macOS this
+ * is the critical missing step — the OS only prompts once, and if the user
+ * never sees the prompt (or dismisses it), subsequent notifications are
+ * silently dropped.
+ *
+ * We use the renderer's HTML5 `Notification.requestPermission()` for this
+ * because (a) Electron's main-process `Notification` class has no permission
+ * API, and (b) the HTML5 API reliably triggers the macOS prompt with the
+ * app's identity.
+ */
+async function ensureNotificationPermission(): Promise<NotificationPermission> {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported";
+  }
+  // eslint-disable-next-line no-undef
+  const current = Notification.permission as NotificationPermission;
+  if (current === "granted" || current === "denied") return current;
+  try {
+    // eslint-disable-next-line no-undef
+    const next = await Notification.requestPermission();
+    return next as NotificationPermission;
+  } catch {
+    return "default";
+  }
+}
 
 /**
  * Truncate long message bodies so the notification renders cleanly on both
@@ -86,10 +115,14 @@ export function useDesktopNotifications() {
   const unreadCounts = useChatStore((s) => s.unreadCounts);
   const loomUnreadCounts = useChatStore((s) => s.loomUnreadCounts);
 
+  const [permission, setPermission] =
+    useState<NotificationPermission>("default");
+
   // Refs let the realtime callbacks read the latest values without re-subscribing.
   const selectedConversationIdRef = useRef(selectedConversationId);
   const selectedThreadIdRef = useRef(selectedThreadId);
   const conversationsRef = useRef(conversations);
+  const permissionRef = useRef<NotificationPermission>("default");
 
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
@@ -100,6 +133,61 @@ export function useDesktopNotifications() {
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
+  useEffect(() => {
+    permissionRef.current = permission;
+  }, [permission]);
+
+  // --- Request OS permission once per session ------------------------------
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const api = getElectronAPI();
+    // Only bother in Electron; browser notifications are out of scope.
+    if (!api?.notify) return;
+
+    let cancelled = false;
+    void (async () => {
+      const result = await ensureNotificationPermission();
+      if (cancelled) return;
+      setPermission(result);
+
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.info(`[notifications] permission: ${result}`);
+      }
+
+      if (result === "granted") {
+        // Fire a one-time welcome notification the first time the user grants
+        // permission in this browser-session. Helps confirm the plumbing is
+        // actually working on macOS (where silent failures are common).
+        const KEY = "notifications.welcomed.v1";
+        try {
+          if (!window.localStorage.getItem(KEY)) {
+            void api.notify?.({
+              title: "Notifications enabled",
+              subtitle: IS_MAC ? "trueChats" : undefined,
+              body: "You'll get a ping for new messages when this window isn't focused.",
+              silent: true,
+            });
+            window.localStorage.setItem(KEY, "1");
+          }
+        } catch {
+          // localStorage can throw in private mode; not worth surfacing.
+        }
+      } else if (result === "denied") {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[notifications] OS permission denied — enable under " +
+            (IS_MAC
+              ? "System Settings → Notifications → trueChats (or Electron in dev)"
+              : "Windows Settings → System → Notifications → trueChats"),
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // --- macOS dock badge: total unread across DMs + Looms ---------------------
   const totalUnread = useMemo(() => {
@@ -139,6 +227,18 @@ export function useDesktopNotifications() {
       subtitle?: string;
       body: string;
     }) => {
+      // If the OS denied us, don't bother pinging main — we'd just fill the
+      // dev console with "silent drop" warnings. Still log once so it's debuggable.
+      if (permissionRef.current !== "granted") {
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.debug(
+            `[notifications] skipped (permission=${permissionRef.current}):`,
+            opts.title,
+          );
+        }
+        return;
+      }
       void api.notify?.(opts);
       // macOS: a single, non-sticky bounce draws the eye without being obnoxious.
       if (IS_MAC && api.bounceDock) void api.bounceDock("informational");
@@ -285,4 +385,20 @@ export function useDesktopNotifications() {
       supabase.removeChannel(threadChannel);
     };
   }, [user]);
+
+  return {
+    /** Current OS notification permission ("granted" | "denied" | "default" | "unsupported"). */
+    permission,
+    /**
+     * Re-trigger the OS permission prompt. Useful for a "Enable notifications"
+     * button in settings if the user previously dismissed the macOS prompt.
+     * Note: if the user has explicitly *denied*, the OS won't prompt again —
+     * they have to toggle it in System Settings.
+     */
+    requestPermission: async () => {
+      const result = await ensureNotificationPermission();
+      setPermission(result);
+      return result;
+    },
+  };
 }

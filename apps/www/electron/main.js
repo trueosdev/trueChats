@@ -165,7 +165,10 @@ function focusMainWindow() {
  */
 function showNativeNotification(payload) {
   try {
-    if (!Notification.isSupported()) return;
+    if (!Notification.isSupported()) {
+      console.warn("[electron] Notification.isSupported() = false — OS integration unavailable.");
+      return;
+    }
     const isMac = process.platform === "darwin";
     const { title, subtitle, body, silent } = payload || {};
     const notification = new Notification({
@@ -178,6 +181,19 @@ function showNativeNotification(payload) {
       ...(isMac && !silent ? { sound: "default" } : {}),
     });
     notification.on("click", focusMainWindow);
+    // `failed` fires when macOS/Chromium refuses the notification — almost always
+    // an OS-level permission issue (System Settings → Notifications → trueChats).
+    notification.on("failed", (_event, err) => {
+      console.warn(
+        "[electron] notification refused by OS (likely a System Settings permission issue):",
+        err,
+      );
+    });
+    notification.on("show", () => {
+      if (process.env.ELECTRON_DEBUG_NOTIFICATIONS) {
+        console.log("[electron] notification shown:", title);
+      }
+    });
     notification.show();
   } catch (e) {
     console.warn("[electron] notification failed:", e?.message ?? e);
@@ -219,11 +235,20 @@ ipcMain.handle("bounce-dock", (_event, type) => {
   }
 });
 
-/** Permissions we allow for our own UI (LiveKit / getUserMedia / getDisplayMedia). */
+/**
+ * Permissions we allow for our own UI.
+ * - media / display-capture / speaker-selection: LiveKit + getUserMedia + getDisplayMedia.
+ * - notifications: required so Chromium doesn't deny `Notification.requestPermission()`
+ *   in production (served from https://chats.trueos.dev). Without this the renderer
+ *   gets permission="denied" and we never reach the OS notification layer — which was
+ *   the exact reason production builds appeared to "not show notifications" despite
+ *   dev working fine (localhost is auto-granted by Chromium).
+ */
 const GRANTED_PERMISSIONS = new Set([
   "media",
   "display-capture",
   "speaker-selection",
+  "notifications",
 ]);
 
 /**
