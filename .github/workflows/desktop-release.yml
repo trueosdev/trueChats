@@ -18,21 +18,20 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: "22"
           cache: "npm"
-          cache-dependency-path: apps/www/package-lock.json
+          # Single lockfile at repo root (npm workspaces); apps/www has none.
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: apps/www
 
       - name: Build and publish desktop app
-        run: npm run release
-        working-directory: apps/www
+        run: npm run release --workspace=shadcn-chat
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
