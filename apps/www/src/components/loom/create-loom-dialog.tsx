@@ -253,7 +253,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) { onOpenChange(false); resetForm() } }}
     >
-      <div className="bg-white dark:bg-[#141414] border border-black/8 dark:border-white/8 rounded-2xl shadow-2xl w-full max-w-[420px] max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#141414] border border-black/10 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-[420px] max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4">
           {(step === 'icon' || step === 'crop') && (
@@ -389,7 +389,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-black/5 dark:border-white/5">
+            <div className="px-5 py-4 border-t border-black/10 dark:border-white/10">
               <Button
                 onClick={handleCreate}
                 disabled={creating || !name.trim()}
@@ -435,7 +435,7 @@ export function CreateLoomDialog({ open, onOpenChange, onLoomCreated }: CreateLo
               </div>
             </div>
 
-            <div className="flex items-center gap-2 px-5 py-4 border-t border-black/5 dark:border-white/5">
+            <div className="flex items-center gap-2 px-5 py-4 border-t border-black/10 dark:border-white/10">
               <button
                 onClick={handleResetCrop}
                 className="h-10 px-3 rounded-xl text-sm font-medium text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center gap-1.5"

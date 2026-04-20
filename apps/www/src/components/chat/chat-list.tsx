@@ -69,6 +69,22 @@ function formatMessageTime(createdAt?: string, timestamp?: string): string {
   return timestamp || "";
 }
 
+/** Normalizes newlines so stray blank lines (\n\n, \n \n, etc.) don’t blow up vertical rhythm. */
+function formatMessageBodyForDisplay(raw: string | null | undefined): string {
+  return (raw ?? "")
+    .trim()
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    // Collapse “blank” lines: multiple newlines even with spaces between
+    .replace(/(?:\n[ \t]*){2,}/g, "\n");
+}
+
+function messageBodyLines(raw: string | null | undefined): string[] {
+  const s = formatMessageBodyForDisplay(raw);
+  if (!s) return [];
+  return s.split("\n");
+}
+
 function shouldShowHeader(
   messages: Message[],
   index: number,
@@ -78,10 +94,9 @@ function shouldShowHeader(
   const previous = messages[index - 1];
   if (current.sender_id !== previous.sender_id) return true;
   if (current.created_at && previous.created_at) {
-    const gap =
-      new Date(current.created_at).getTime() -
-      new Date(previous.created_at).getTime();
-    if (gap > 5 * 60 * 1000) return true;
+    const curDate = new Date(current.created_at).toDateString();
+    const prevDate = new Date(previous.created_at).toDateString();
+    if (curDate !== prevDate) return true;
   }
   return false;
 }
@@ -228,38 +243,42 @@ export function ChatList({
                 )}
                 <motion.div
                   data-message-id={message.id}
-                  layout
-                  initial={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-                  animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
-                  exit={{ opacity: 0, scale: 1, y: 1, x: 0 }}
-                  transition={{
-                    opacity: { duration: 0 },
-                    layout: { type: "spring", bounce: 0.3, duration: 0 },
-                  }}
+                  initial={false}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.08 }}
+                  style={{ marginTop: showHeader && index !== 0 ? "1rem" : 0 }}
                 >
                   <div
-                    className={`-mx-1 group flex gap-3 rounded-md px-1 hover:bg-muted/60 ${
-                      showHeader
-                        ? "mt-4 py-0.5 first:mt-0"
-                        : "mt-0.5 py-0 first:mt-0"
-                    }`}
+                    className="-mx-1 group relative flex items-start gap-3 rounded-md px-1 hover:bg-muted/60"
                   >
-                  {/* Avatar column */}
-                  <div className="w-10 shrink-0 pt-0.5">
-                    {showHeader && <MessageAvatar avatarUrl={message.avatar} />}
+                  {/* Avatar gutter (avatar is absolutely positioned so it never affects row height) */}
+                  <div className="relative w-10 shrink-0">
+                    {showHeader ? (
+                      <div className="absolute left-0 top-0">
+                        <MessageAvatar avatarUrl={message.avatar} />
+                      </div>
+                    ) : (
+                      <span className="block pr-2 text-right text-[10px] leading-snug text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100">
+                        {message.created_at
+                          ? new Date(message.created_at).toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </span>
+                    )}
                   </div>
 
                   {/* Content column */}
                   <div className="flex-1 min-w-0">
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
-                        <div>
+                        <div className="flex flex-col gap-1">
                           {/* Header: name + time + read receipt */}
                           {showHeader && (
-                            <div className="flex items-baseline gap-2 mb-0.5">
-                              <span className="text-sm font-semibold">
-                                {message.name}
-                              </span>
+                            <div className="flex min-h-[1.25rem] items-baseline gap-2 text-sm leading-5">
+                              <span className="font-semibold">{message.name}</span>
                               <span className="text-xs text-muted-foreground/50">
                                 {formatMessageTime(
                                   message.created_at,
@@ -282,7 +301,7 @@ export function ChatList({
                               );
                               if (repliedMessage) {
                                 return (
-                                  <div className="mb-1 rounded border-l border-border bg-muted/40 p-2 text-sm">
+                                  <div className="rounded border-l border-border bg-muted/40 p-2 text-sm">
                                     <div className="text-xs text-muted-foreground mb-0.5">
                                       {repliedMessage.name}
                                     </div>
@@ -297,7 +316,7 @@ export function ChatList({
 
                           {/* Attachment */}
                           {message.attachment_url && (
-                            <div className="mb-1 not-prose">
+                            <div className="not-prose">
                               {isImageFile(message.attachment_type || "") ? (
                                 <a
                                   href={message.attachment_url}
@@ -399,23 +418,29 @@ export function ChatList({
                               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
                             </div>
                           ) : (
-                            <p className="text-sm whitespace-pre-wrap break-words leading-snug">
-                              {message.message}
-                              {message.edited_at && (
-                                <span className="text-xs text-muted-foreground italic">
-                                  {" "}
-                                  (edited)
-                                </span>
+                            <div className="m-0 flex flex-col text-sm leading-5">
+                              {messageBodyLines(message.message).map(
+                                (line, i, arr) => {
+                                  const isLast = i === arr.length - 1;
+                                  return (
+                                    <span
+                                      key={i}
+                                      className="block min-w-0 whitespace-pre-wrap break-words"
+                                    >
+                                      {line.length > 0 ? line : "\u00a0"}
+                                      {isLast && message.edited_at && (
+                                        <span className="text-xs text-muted-foreground italic">
+                                          {" "}
+                                          (edited)
+                                        </span>
+                                      )}
+                                    </span>
+                                  );
+                                },
                               )}
-                            </p>
+                            </div>
                           )}
 
-                          {/* Read receipt inline for grouped (no-header) messages */}
-                          {isSelf && !showHeader && (
-                            <span className="ml-1 inline-block translate-y-[1px] opacity-0 transition-opacity group-hover:opacity-100">
-                              {renderReadReceipt(message)}
-                            </span>
-                          )}
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent>
@@ -464,6 +489,11 @@ export function ChatList({
                       </ContextMenuContent>
                     </ContextMenu>
                   </div>
+                  {isSelf && !showHeader && (
+                    <span className="pointer-events-none absolute right-2 top-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      {renderReadReceipt(message)}
+                    </span>
+                  )}
                   </div>
                 </motion.div>
               </React.Fragment>

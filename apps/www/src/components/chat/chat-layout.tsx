@@ -98,7 +98,8 @@ export function ChatLayout({
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
   const loomRailMeasureRef = useRef<HTMLDivElement | null>(null);
   const sidebarMeasureRef = useRef<HTMLDivElement | null>(null);
-  const { callState, isMinimized } = useCall();
+  const { callState, isMinimized, conversationId: dmCallConversationId } =
+    useCall();
   const dmCallFullscreenOverlay =
     callState === "connected" && !isMinimized;
 
@@ -473,6 +474,17 @@ export function ChatLayout({
     }
 
     if (selectedConversation) {
+      if (
+        dmCallFullscreenOverlay &&
+        dmCallConversationId === selectedConversation.id
+      ) {
+        return (
+          <div
+            className="h-full min-h-0 w-full bg-background"
+            aria-hidden
+          />
+        );
+      }
       return (
         <Chat
           conversation={selectedConversation}

@@ -52,6 +52,65 @@ import {
   THREAD_NAME_MAX_CHARS,
 } from '@/lib/thread-field-limits'
 
+type VoiceCallParticipantPreview = {
+  identity: string
+  name: string
+  avatarUrl: string | null
+}
+
+function initialsFromDisplayName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) {
+    return (parts[0]![0] + parts[1]![0]).toUpperCase().slice(0, 2)
+  }
+  return (parts[0]?.[0] ?? '?').toUpperCase()
+}
+
+function VoiceCallParticipantAvatars({
+  participants,
+}: {
+  participants: VoiceCallParticipantPreview[]
+}) {
+  if (participants.length === 0) return null
+  const shown = participants.slice(0, 3)
+  const extra = participants.length - shown.length
+  return (
+    <div
+      className="pointer-events-none flex shrink-0 items-center pl-1"
+      aria-label={`${participants.length} in call`}
+    >
+      <div className="flex items-center">
+        {shown.map((p, i) => (
+          <span
+            key={p.identity || `p-${i}`}
+            title={p.name}
+            className={cn(i > 0 && '-ml-2')}
+          >
+            <Avatar
+              className={cn(
+                'relative h-6 w-6 border-2 border-background text-[10px]',
+                i === 0 && 'z-[1]',
+                i === 1 && 'z-[2]',
+                i === 2 && 'z-[3]',
+              )}
+            >
+              <AvatarImage src={p.avatarUrl ?? undefined} alt="" />
+              <AvatarFallback className="text-[9px] font-medium">
+                {initialsFromDisplayName(p.name)}
+              </AvatarFallback>
+            </Avatar>
+          </span>
+        ))}
+      </div>
+      {extra > 0 ? (
+        <span className="ml-1 text-[11px] tabular-nums text-muted-foreground">
+          +{extra}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 interface ThreadListProps {
   loom: Loom
   threads: Thread[]
@@ -82,7 +141,7 @@ export function ThreadList({
   loading = false,
   isCollapsed = false,
 }: ThreadListProps) {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const addThreadFolder = useChatStore((s) => s.addThreadFolder)
   const updateThreadFolderStore = useChatStore((s) => s.updateThreadFolder)
   const removeThreadFolderStore = useChatStore((s) => s.removeThreadFolder)
@@ -101,6 +160,73 @@ export function ThreadList({
   const [renameTarget, setRenameTarget] = useState<ThreadFolder | null>(null)
   const [folderNameBusy, setFolderNameBusy] = useState(false)
   const [dragOverDropId, setDragOverDropId] = useState<string | null>(null)
+  const livekitConfigured = Boolean(
+    process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim(),
+  )
+  const voiceThreadIdsKey = useMemo(
+    () =>
+      threads
+        .filter((t) => t.category === 'voice')
+        .map((t) => t.id)
+        .sort()
+        .join(','),
+    [threads],
+  )
+  const [voiceCallParticipantsByThreadId, setVoiceCallParticipantsByThreadId] =
+    useState<Record<string, VoiceCallParticipantPreview[]>>({})
+
+  useEffect(() => {
+    const voiceThreadIds = voiceThreadIdsKey
+      ? voiceThreadIdsKey.split(',')
+      : []
+    if (
+      !livekitConfigured ||
+      !session?.access_token ||
+      voiceThreadIds.length === 0
+    ) {
+      setVoiceCallParticipantsByThreadId({})
+      return
+    }
+
+    let cancelled = false
+
+    const tick = async () => {
+      const entries = await Promise.all(
+        voiceThreadIds.map(async (id) => {
+          const roomName = `thread-${id}`
+          try {
+            const res = await fetch(
+              `/api/livekit/room-participants?roomName=${encodeURIComponent(roomName)}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+              },
+            )
+            if (!res.ok) return [id, []] as const
+            const data = (await res.json()) as {
+              participants?: VoiceCallParticipantPreview[]
+            }
+            const list = Array.isArray(data.participants)
+              ? data.participants
+              : []
+            return [id, list] as const
+          } catch {
+            return [id, []] as const
+          }
+        }),
+      )
+      if (cancelled) return
+      setVoiceCallParticipantsByThreadId(Object.fromEntries(entries))
+    }
+
+    void tick()
+    const interval = setInterval(() => void tick(), 8000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [livekitConfigured, session?.access_token, voiceThreadIdsKey])
 
   useEffect(() => {
     try {
@@ -481,7 +607,7 @@ export function ThreadList({
               <div className="min-w-0 flex-1 text-left">
                 <h2 className="truncate text-sm font-semibold text-foreground">{loom.name}</h2>
                 {loom.description && (
-                  <p className="truncate text-[11px] text-muted-foreground">{loom.description}</p>
+                  <p className="truncate text-[11px] text-muted-foreground/50">{loom.description}</p>
                 )}
               </div>
             </button>
@@ -533,6 +659,9 @@ export function ThreadList({
                   <ThreadItem
                     key={thread.id}
                     thread={thread}
+                    voiceCallParticipants={
+                      voiceCallParticipantsByThreadId[thread.id]
+                    }
                     selected={selectedThreadId === thread.id}
                     onSelect={() => onThreadSelect(thread.id)}
                     onDragEnd={() => setDragOverDropId(null)}
@@ -541,7 +670,7 @@ export function ThreadList({
               </div>
             )}
 
-            {sortedFolders.map((folder) => {
+            {sortedFolders.map((folder, folderIndex) => {
               const inFolder = regularThreads.filter((t) => t.folder_id === folder.id)
               const open = isFolderExpanded(folder.id)
               const dropId = `folder-${folder.id}`
@@ -549,7 +678,8 @@ export function ThreadList({
                 <div
                   key={folder.id}
                   className={cn(
-                    "mb-0.5 rounded-md transition-colors",
+                    "transition-colors",
+                    folderIndex > 0 && "border-t border-border pt-1.5",
                     dragOverDropId === dropId &&
                       "bg-primary/10 ring-2 ring-primary/30 ring-inset",
                   )}
@@ -622,6 +752,9 @@ export function ThreadList({
                           <ThreadItem
                             key={thread.id}
                             thread={thread}
+                            voiceCallParticipants={
+                              voiceCallParticipantsByThreadId[thread.id]
+                            }
                             selected={selectedThreadId === thread.id}
                             onSelect={() => onThreadSelect(thread.id)}
                             onDragEnd={() => setDragOverDropId(null)}
@@ -642,7 +775,7 @@ export function ThreadList({
                 return (
                   <div
                     className={cn(
-                      "mb-0.5 rounded-md transition-colors",
+                      "border-t border-border pt-1.5 transition-colors mt-1.5",
                       dragOverDropId === "uncategorized" &&
                         "bg-primary/10 ring-2 ring-primary/30 ring-inset",
                     )}
@@ -678,6 +811,9 @@ export function ThreadList({
                           <ThreadItem
                             key={thread.id}
                             thread={thread}
+                            voiceCallParticipants={
+                              voiceCallParticipantsByThreadId[thread.id]
+                            }
                             selected={selectedThreadId === thread.id}
                             onSelect={() => onThreadSelect(thread.id)}
                             onDragEnd={() => setDragOverDropId(null)}
@@ -699,6 +835,9 @@ export function ThreadList({
                     <ThreadItem
                       key={thread.id}
                       thread={thread}
+                      voiceCallParticipants={
+                        voiceCallParticipantsByThreadId[thread.id]
+                      }
                       selected={selectedThreadId === thread.id}
                       onSelect={() => onThreadSelect(thread.id)}
                       onDragEnd={() => setDragOverDropId(null)}
@@ -905,11 +1044,13 @@ export function ThreadList({
 
 function ThreadItem({
   thread,
+  voiceCallParticipants,
   selected,
   onSelect,
   onDragEnd,
 }: {
   thread: Thread
+  voiceCallParticipants?: VoiceCallParticipantPreview[]
   selected: boolean
   onSelect: () => void
   onDragEnd?: () => void
@@ -991,6 +1132,12 @@ function ThreadItem({
           <Pin size={10} className="shrink-0 text-muted-foreground" />
         )}
       </button>
+
+      {thread.category === 'voice' &&
+      voiceCallParticipants &&
+      voiceCallParticipants.length > 0 ? (
+        <VoiceCallParticipantAvatars participants={voiceCallParticipants} />
+      ) : null}
 
       <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
         <PopoverTrigger asChild>

@@ -55,10 +55,34 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  function avatarUrlFromMetadata(metadata: string | undefined): string | null {
+    if (!metadata?.trim()) return null;
+    try {
+      const parsed = JSON.parse(metadata) as { avatarUrl?: unknown };
+      if (
+        typeof parsed.avatarUrl === "string" &&
+        parsed.avatarUrl.trim() !== ""
+      ) {
+        return parsed.avatarUrl.trim();
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   try {
     const roomService = new RoomServiceClient(host, apiKey, apiSecret);
     const participants = await roomService.listParticipants(roomName);
-    return NextResponse.json({ participantCount: participants.length });
+    const previews = participants.map((p) => ({
+      identity: p.identity,
+      name: (p.name && p.name.trim()) || p.identity || "Guest",
+      avatarUrl: avatarUrlFromMetadata(p.metadata),
+    }));
+    return NextResponse.json({
+      participantCount: previews.length,
+      participants: previews,
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     const code =
@@ -73,7 +97,7 @@ export async function GET(req: NextRequest) {
       code === 5 ||
       /not found|does not exist|unknown room|no such room/i.test(msg)
     ) {
-      return NextResponse.json({ participantCount: 0 });
+      return NextResponse.json({ participantCount: 0, participants: [] });
     }
     console.error(
       "[livekit/room-participants] listParticipants failed",

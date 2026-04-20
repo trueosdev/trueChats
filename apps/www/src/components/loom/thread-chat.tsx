@@ -408,7 +408,7 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
           <button
             onClick={handleJoin}
             disabled={connecting}
-            className="flex items-center justify-center rounded-full bg-green-600 px-4 py-4 text-sm font-medium text-white shadow-lg shadow-green-600/40 transition-colors hover:bg-green-700 disabled:opacity-50"
+            className="flex items-center justify-center rounded-full bg-green-600 px-4 py-4 text-sm font-medium text-white shadow-[0_0_10px_2px_rgba(22,163,74,0.45)] transition-[colors,box-shadow] hover:bg-green-700 hover:shadow-[0_0_15px_2px_rgba(22,163,74,0.5)] disabled:opacity-50"
           >
             {connecting ? (
               <PhoneCall size={20} className="text-white animate-pulse" />

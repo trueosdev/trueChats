@@ -40,7 +40,7 @@ export function IncomingCallOverlay() {
           </Button>
           <Button
             size="sm"
-            className="h-8 gap-1.5 rounded-full bg-green-600 px-3 text-xs font-medium text-white shadow-md shadow-green-600/35 hover:bg-green-700"
+            className="h-8 gap-1.5 rounded-full bg-green-600 px-3 text-xs font-medium text-white shadow-[0_0_5px_1px_rgba(22,163,74,0.45)] hover:bg-green-700 hover:shadow-[0_0_7px_1px_rgba(22,163,74,0.5)]"
             onClick={joinCall}
           >
             <Phone className="h-3.5 w-3.5" />
