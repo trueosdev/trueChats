@@ -3,11 +3,13 @@
 import { useRoomContext } from "@livekit/components-react";
 import { RoomEvent } from "livekit-client";
 import { useEffect, useRef } from "react";
+import { getAudioSettingsSnapshot } from "@/hooks/useAudioSettings";
 
 /**
- * Re-applies system default mic, speaker, and (when requested) camera at the
- * start of each room session. LiveKit can otherwise keep concrete deviceIds
- * across reconnects or prior UI selections.
+ * Pins the user's selected mic, speaker, and (when applicable) camera at the
+ * start of each room session, and keeps them in sync with live edits in the
+ * Audio/Video Settings dialog. `switchActiveDevice` is non-disruptive, so
+ * changing devices mid-call works without reconnecting.
  */
 export function EnsureDefaultMediaDevices({ video }: { video: boolean }) {
   const room = useRoomContext();
@@ -24,25 +26,40 @@ export function EnsureDefaultMediaDevices({ video }: { video: boolean }) {
   }, [room]);
 
   useEffect(() => {
-    const apply = () => {
-      if (appliedThisSessionRef.current) return;
-      appliedThisSessionRef.current = true;
+    const applyDevices = () => {
+      const { micDeviceId, speakerDeviceId, cameraDeviceId } =
+        getAudioSettingsSnapshot();
 
       const tasks: Array<Promise<boolean | void>> = [
-        room.switchActiveDevice("audioinput", "default", false),
-        room.switchActiveDevice("audiooutput", "default", false),
+        room.switchActiveDevice("audioinput", micDeviceId || "default", false),
+        room.switchActiveDevice("audiooutput", speakerDeviceId || "default", false),
       ];
       if (video) {
-        tasks.push(room.switchActiveDevice("videoinput", "default", false));
+        tasks.push(
+          room.switchActiveDevice("videoinput", cameraDeviceId || "default", false),
+        );
       }
       void Promise.allSettled(tasks);
     };
 
-    room.on(RoomEvent.SignalConnected, apply);
-    room.on(RoomEvent.Connected, apply);
+    const applyInitial = () => {
+      if (appliedThisSessionRef.current) return;
+      appliedThisSessionRef.current = true;
+      applyDevices();
+    };
+
+    room.on(RoomEvent.SignalConnected, applyInitial);
+    room.on(RoomEvent.Connected, applyInitial);
+
+    // Keep devices in sync with live settings edits while a call is active.
+    window.addEventListener("truechats:audio-settings-changed", applyDevices);
+    window.addEventListener("storage", applyDevices);
+
     return () => {
-      room.off(RoomEvent.SignalConnected, apply);
-      room.off(RoomEvent.Connected, apply);
+      room.off(RoomEvent.SignalConnected, applyInitial);
+      room.off(RoomEvent.Connected, applyInitial);
+      window.removeEventListener("truechats:audio-settings-changed", applyDevices);
+      window.removeEventListener("storage", applyDevices);
     };
   }, [room, video]);
 

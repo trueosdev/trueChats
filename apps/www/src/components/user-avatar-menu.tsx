@@ -14,11 +14,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { LogOut, ImageIcon } from "lucide-react";
+import { LogOut, ImageIcon, Headphones } from "lucide-react";
 import { signOut } from "@/lib/supabase/auth";
 import { useRouter } from "next/navigation";
 import { ChangeAvatarDialog } from "./change-avatar-dialog";
 import { ThemeEditor } from "./theme-editor";
+import { AudioVideoSettingsDialog } from "./audio-video-settings-dialog";
 
 export function UserAvatarMenu() {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export function UserAvatarMenu() {
   const isBlackWhite = colorTheme.name === "Black & White";
   const router = useRouter();
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [avSettingsOpen, setAvSettingsOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
@@ -60,7 +62,12 @@ export function UserAvatarMenu() {
         onOpenChange={setAvatarDialogOpen}
         onAvatarChanged={handleAvatarChanged}
       />
-      
+
+      <AudioVideoSettingsDialog
+        open={avSettingsOpen}
+        onOpenChange={setAvSettingsOpen}
+      />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full p-0">
@@ -84,6 +91,14 @@ export function UserAvatarMenu() {
             <span>Change Avatar</span>
           </DropdownMenuItem>
           <ThemeEditor />
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setAvSettingsOpen(true)}
+            className="cursor-pointer"
+          >
+            <Headphones className="mr-2 h-4 w-4" />
+            <span>Audio/Video Settings</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className={`cursor-pointer ${isBlackWhite ? "text-foreground" : "text-red-600"}`}>
             <LogOut className="mr-2 h-4 w-4" />

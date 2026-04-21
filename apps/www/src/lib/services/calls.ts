@@ -25,19 +25,42 @@ export function getCallRoomName(conversationId: string) {
   return `truechats-call-${conversationId}`;
 }
 
+/**
+ * Return a valid Supabase access token, refreshing the session first if the
+ * cached token is expired or close to expiring. Supabase's auto-refresh runs
+ * on a background timer, so a long-idle tab can still hold a stale token
+ * when the user finally picks up a call — hitting /api/livekit/token with a
+ * stale Bearer ends up as a 401 server-side.
+ */
+async function getFreshAccessToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+
+  const expiresAtMs = session.expires_at ? session.expires_at * 1000 : 0;
+  const isExpiringSoon = !expiresAtMs || expiresAtMs < Date.now() + 60_000;
+
+  if (!isExpiringSoon) return session.access_token;
+
+  const { data: refreshed, error } = await supabase.auth.refreshSession();
+  if (error || !refreshed.session) return null;
+  return refreshed.session.access_token;
+}
+
 export async function getLiveKitToken(
   roomName: string,
   participantName: string,
   avatarUrl?: string | null,
 ): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = await getFreshAccessToken();
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+
   const res = await fetch("/api/livekit/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` }
-        : {}),
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({ roomName, participantName, avatarUrl: avatarUrl ?? null }),
   });

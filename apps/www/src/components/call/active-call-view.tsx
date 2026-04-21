@@ -24,7 +24,8 @@ import { PhoneOff, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCall } from "./call-provider";
 import { CallSpeakingAvatar } from "./call-speaking-avatar";
-import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "./livekit-room-media-defaults";
+import { buildRoomMediaDefaults } from "./livekit-room-media-defaults";
+import { getAudioSettingsSnapshot } from "@/hooks/useAudioSettings";
 import { LiveKitUiFeatureProvider } from "./livekit-feature-context";
 import { EnsureDefaultMediaDevices } from "./ensure-default-media-devices";
 import { DmMinimizedCallPillInner } from "./minimized-call-pill";
@@ -215,6 +216,12 @@ function VideoView() {
 export function ActiveCallView() {
   const { callState, callType, livekitToken, livekitUrl, roomName, hangUp, isMinimized } =
     useCall();
+  // `RoomOptions` is captured once at connect by LiveKit, so we snapshot the
+  // user's saved audio settings at mount. Setting changes take effect on the
+  // next call. ActiveCallView remounts on every new call (it returns null when
+  // idle), so this naturally picks up the latest values.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const roomOptions = useMemo(() => buildRoomMediaDefaults(getAudioSettingsSnapshot()), []);
 
   if (callState !== "connected" || !livekitToken || !roomName) return null;
 
@@ -225,7 +232,7 @@ export function ActiveCallView() {
       connect={true}
       video={callType === "video"}
       audio={true}
-      options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
+      options={roomOptions}
       onDisconnected={hangUp}
       data-lk-theme="default"
       className={

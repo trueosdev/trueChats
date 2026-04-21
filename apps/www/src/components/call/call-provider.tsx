@@ -261,7 +261,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
         // Start the ringback only after the offer is in flight; if the offer
         // throws we'll have already entered the `catch` and reset.
         setIsAwaitingAnswer(true);
-      } catch {
+      } catch (err) {
+        console.error("[call-provider] startCall failed", err);
         resetCall();
       }
     },
@@ -295,7 +296,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
         type: "answer",
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (err) {
+      console.error("[call-provider] joinCall failed", err);
       resetCall();
     }
   }, [user, roomName, resetCall]);

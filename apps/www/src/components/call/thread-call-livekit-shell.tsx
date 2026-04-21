@@ -1,12 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { LiveKitRoom } from "@livekit/components-react";
 import {
   CallAudioMixerProvider,
   PerParticipantRoomAudioRenderer,
 } from "@/components/call/call-audio-mixer";
-import { LIVEKIT_ROOM_MEDIA_DEFAULTS } from "@/components/call/livekit-room-media-defaults";
+import { buildRoomMediaDefaults } from "@/components/call/livekit-room-media-defaults";
+import { getAudioSettingsSnapshot } from "@/hooks/useAudioSettings";
 import { LiveKitUiFeatureProvider } from "@/components/call/livekit-feature-context";
 import { EnsureDefaultMediaDevices } from "@/components/call/ensure-default-media-devices";
 import { useThreadCall } from "@/components/call/thread-call-provider";
@@ -29,6 +30,12 @@ export function ThreadCallLiveKitShell({ children }: { children: ReactNode }) {
   const connected =
     threadCallState === "connected" && !!livekitToken && !!roomName;
 
+  // Snapshot the user's audio settings once per mount. Because we only mount
+  // when `connected` is true (see early return below), each new call pulls
+  // fresh settings and mid-call toggles don't thrash the LiveKit connection.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const roomOptions = useMemo(() => buildRoomMediaDefaults(getAudioSettingsSnapshot()), [connected]);
+
   if (!connected) {
     return <>{children}</>;
   }
@@ -40,7 +47,7 @@ export function ThreadCallLiveKitShell({ children }: { children: ReactNode }) {
       connect={true}
       audio={true}
       video={false}
-      options={LIVEKIT_ROOM_MEDIA_DEFAULTS}
+      options={roomOptions}
       onDisconnected={leaveThreadCall}
       data-lk-theme="default"
       className="contents"
