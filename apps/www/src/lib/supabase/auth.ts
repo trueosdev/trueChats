@@ -86,6 +86,51 @@ export async function signOut() {
   return { error }
 }
 
+/**
+ * Send a password reset email. Supports looking up an email by username as
+ * well, matching the behavior of `signIn`.
+ */
+export async function resetPassword(emailOrUsername: string) {
+  const isEmail = emailOrUsername.includes('@')
+  let email = emailOrUsername
+
+  if (!isEmail) {
+    const foundEmail = await getEmailByUsername(emailOrUsername)
+    if (!foundEmail) {
+      return {
+        data: null,
+        error: {
+          message: 'No account found for that username',
+          name: 'AuthApiError',
+          status: 400,
+        } as any,
+      }
+    }
+    email = foundEmail
+  }
+
+  const redirectTo =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback?next=/auth/reset-password`
+      : undefined
+
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  })
+  return { data, error }
+}
+
+/**
+ * Update the signed-in user's password. Used after a password recovery
+ * redirect has exchanged the recovery code for a session.
+ */
+export async function updatePassword(newPassword: string) {
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword,
+  })
+  return { data, error }
+}
+
 export async function getSession() {
   const { data: { session }, error } = await supabase.auth.getSession()
   return { session, error }

@@ -109,6 +109,12 @@ function LoginForm() {
           </Button>
 
           <p className="text-center text-sm text-[#181818] dark:text-white">
+            <Link href="/auth/forgot-password" className="text-[#181818] dark:text-white underline hover:no-underline">
+              Forgot your password?
+            </Link>
+          </p>
+
+          <p className="text-center text-sm text-[#181818] dark:text-white">
             New to trueChats?{' '}
             <Link href="/auth/signup" className="text-[#181818] dark:text-white underline hover:no-underline">
               Sign up
