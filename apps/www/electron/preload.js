@@ -27,4 +27,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   /** Download the pending update and restart the app (packaged builds only). */
   downloadAndInstallUpdate: () => ipcRenderer.invoke("electron-download-and-install-update"),
+  /**
+   * Subscribe to native notification clicks. The payload is the `data` object
+   * passed to `notify(...)` — used by the renderer to route the user to the
+   * conversation/thread that triggered the notification.
+   * @param {(data: unknown) => void} callback
+   * @returns {() => void} unsubscribe
+   */
+  onNotificationClick: (callback) => {
+    const channel = "notification-clicked";
+    const handler = (_event, payload) => {
+      callback(payload);
+    };
+    ipcRenderer.on(channel, handler);
+    return () => {
+      ipcRenderer.removeListener(channel, handler);
+    };
+  },
 });

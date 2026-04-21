@@ -170,7 +170,7 @@ function showNativeNotification(payload) {
       return;
     }
     const isMac = process.platform === "darwin";
-    const { title, subtitle, body, silent } = payload || {};
+    const { title, subtitle, body, silent, data } = payload || {};
     const notification = new Notification({
       title: title || APP_NAME,
       ...(isMac && subtitle ? { subtitle } : {}),
@@ -180,7 +180,14 @@ function showNativeNotification(payload) {
       // macOS: use the default system "new message" sound when not silent.
       ...(isMac && !silent ? { sound: "default" } : {}),
     });
-    notification.on("click", focusMainWindow);
+    notification.on("click", () => {
+      focusMainWindow();
+      // Echo the caller-supplied `data` back to the renderer so it can route
+      // to the conversation/thread that triggered this notification.
+      if (data) {
+        broadcastToRenderer("notification-clicked", data);
+      }
+    });
     // `failed` fires when macOS/Chromium refuses the notification — almost always
     // an OS-level permission issue (System Settings → Notifications → trueChats).
     notification.on("failed", (_event, err) => {

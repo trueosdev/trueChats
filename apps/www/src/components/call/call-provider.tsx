@@ -20,6 +20,7 @@ import {
   type CallType,
 } from "@/lib/services/calls";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { DEFAULT_CALL_RINGTONE_SRC } from "@/components/call/default-call-ringtone";
 
 export type CallState = "idle" | "connected" | "incoming";
 
@@ -136,6 +137,33 @@ export function CallProvider({ children }: { children: ReactNode }) {
       channelRef.current = null;
     };
   }, [user, handleSignal]);
+
+  useEffect(() => {
+    if (callState !== "incoming") return;
+
+    const audio = new Audio(DEFAULT_CALL_RINGTONE_SRC);
+    audio.loop = true;
+    audio.volume = 0.85;
+
+    const stopRing = () => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.removeAttribute("src");
+      audio.load();
+    };
+
+    void audio.play().catch(() => {
+      // Autoplay policy may block until a user gesture; ring is best-effort.
+    });
+
+    const maxRingMs = 15_000;
+    const stopTimer = window.setTimeout(stopRing, maxRingMs);
+
+    return () => {
+      window.clearTimeout(stopTimer);
+      stopRing();
+    };
+  }, [callState]);
 
   const startCall = useCallback(
     async (

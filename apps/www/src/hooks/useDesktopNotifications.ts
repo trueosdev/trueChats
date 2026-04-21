@@ -9,6 +9,15 @@ import useChatStore from "@/hooks/useChatStore";
  * Shape exposed by `apps/www/electron/preload.js`. We duck-type it rather than
  * importing a .d.ts so web builds (without Electron) compile unchanged.
  */
+/**
+ * Shape of the route hint we embed in each notification. The main process
+ * echoes this payload back via `onNotificationClick` when the user clicks the
+ * toast, so the renderer can navigate to the source conversation/thread.
+ */
+type NotificationRoute =
+  | { type: "dm"; conversationId: string }
+  | { type: "thread"; threadId: string; loomId: string };
+
 type ElectronAPI = {
   platform?: string;
   notify?: (options: {
@@ -16,9 +25,13 @@ type ElectronAPI = {
     subtitle?: string;
     body?: string;
     silent?: boolean;
+    data?: NotificationRoute;
   }) => Promise<unknown>;
   setBadgeCount?: (count: number) => Promise<unknown>;
   bounceDock?: (type?: "informational" | "critical") => Promise<unknown>;
+  onNotificationClick?: (
+    callback: (data: NotificationRoute | null | undefined) => void,
+  ) => () => void;
 };
 
 function getElectronAPI(): ElectronAPI | null {
@@ -237,6 +250,48 @@ export function useDesktopNotifications() {
     };
   }, []);
 
+  // --- Notification click → route to the source conversation/thread --------
+  //
+  // The main process echoes the `data` payload we attached to each notification
+  // back to us when the user clicks the toast. We read the store via
+  // `getState()` so this effect doesn't need to re-subscribe every time the
+  // selection changes.
+  useEffect(() => {
+    const api = getElectronAPI();
+    if (!api?.onNotificationClick) return;
+
+    const unsubscribe = api.onNotificationClick((data) => {
+      if (!data || typeof data !== "object") return;
+      const store = useChatStore.getState();
+
+      if (data.type === "dm" && data.conversationId) {
+        // Switch to DMs view and open the conversation. Clear its unread
+        // badge optimistically — server-side mark-as-read still runs inside
+        // the chat view.
+        store.setViewMode("dms");
+        store.setSelectedLoomId(null);
+        store.setSelectedThreadId(null);
+        store.setSelectedConversationId(data.conversationId);
+        store.setUnreadCount(data.conversationId, 0);
+        return;
+      }
+
+      if (data.type === "thread" && data.threadId && data.loomId) {
+        store.setViewMode("looms");
+        store.setSelectedConversationId(null);
+        // `setSelectedLoomId` clears any previously selected thread, so set
+        // the loom first and the thread second.
+        store.setSelectedLoomId(data.loomId);
+        store.setSelectedThreadId(data.threadId);
+        store.markThreadRead(data.threadId);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   // --- Realtime: new-message notifications ----------------------------------
   useEffect(() => {
     if (!user) return;
@@ -262,6 +317,7 @@ export function useDesktopNotifications() {
       title: string;
       subtitle?: string;
       body: string;
+      data?: NotificationRoute;
     }) => {
       // If the OS denied us, don't bother pinging main — we'd just fill the
       // dev console with "silent drop" warnings. Still log once so it's debuggable.
@@ -284,7 +340,7 @@ export function useDesktopNotifications() {
     const senderCache = new Map<string, { name: string }>();
     const threadCache = new Map<
       string,
-      { threadName: string; loomName: string }
+      { threadName: string; loomName: string; loomId: string }
     >();
 
     const fetchSender = async (senderId: string): Promise<string> => {
@@ -307,7 +363,11 @@ export function useDesktopNotifications() {
 
     const fetchThreadContext = async (
       threadId: string,
-    ): Promise<{ threadName: string; loomName: string } | null> => {
+    ): Promise<{
+      threadName: string;
+      loomName: string;
+      loomId: string;
+    } | null> => {
       const cached = threadCache.get(threadId);
       if (cached) return cached;
       const { data } = await supabase
@@ -316,12 +376,14 @@ export function useDesktopNotifications() {
         .eq("id", threadId)
         .maybeSingle();
       if (!data) return null;
+      const loomId = (data as { loom_id?: string | null }).loom_id || "";
+      if (!loomId) return null;
       const loomName =
         (data as { looms?: { name?: string | null } | null }).looms?.name ||
         "Loom";
       const threadName =
         (data as { name?: string | null }).name || "thread";
-      const ctx = { threadName, loomName };
+      const ctx = { threadName, loomName, loomId };
       threadCache.set(threadId, ctx);
       return ctx;
     };
@@ -360,7 +422,11 @@ export function useDesktopNotifications() {
 
           const body = previewMessage(msg);
           if (!body) return;
-          notify({ title, body });
+          notify({
+            title,
+            body,
+            data: { type: "dm", conversationId: msg.conversation_id },
+          });
         },
       )
       .subscribe();
@@ -397,6 +463,11 @@ export function useDesktopNotifications() {
           if (!preview) return;
 
           const title = senderName;
+          const route: NotificationRoute = {
+            type: "thread",
+            threadId: msg.thread_id,
+            loomId: ctx.loomId,
+          };
           if (IS_MAC) {
             // macOS renders subtitle as its own bolder line between title and body —
             // perfect for the loom/thread context without cluttering the message body.
@@ -404,12 +475,14 @@ export function useDesktopNotifications() {
               title,
               subtitle: `${ctx.loomName} › ${ctx.threadName}`,
               body: preview,
+              data: route,
             });
           } else {
             // Windows/Linux: no subtitle field, so fall back to the `[Loom, Thread]\n<message>` body.
             notify({
               title,
               body: `[${ctx.loomName}, ${ctx.threadName}]\n${preview}`,
+              data: route,
             });
           }
         },
