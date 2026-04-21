@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { LiveKitLucideControlBar } from '@/components/call/livekit-lucide-control-bar'
 import { LocalCameraScreenSharePip } from '@/components/call/local-camera-screen-share-pip'
 import { useThreadCall } from '@/components/call/thread-call-provider'
+import { ensureCallPermissions } from '@/hooks/useMediaPermissions'
 import { ExpandableChatHeader } from '@shadcn-chat/ui'
 import { ChatList } from '../chat/chat-list'
 import ChatBottombar from '../chat/chat-bottombar'
@@ -295,6 +296,14 @@ function VoiceChannelView({ thread, loom }: { thread: Thread; loom: Loom }) {
     setError(null)
     setConnecting(true)
     try {
+      // Ensure mic access before we hit the token endpoint. If the user denies
+      // (or TCC is already blocked), `ensureCallPermissions` broadcasts an
+      // event that opens the Audio/Video Settings dialog so they can resolve it.
+      const permCheck = await ensureCallPermissions('audio')
+      if (!permCheck.ok) {
+        setError('Microphone access is required to join this call.')
+        return
+      }
       const token = await fetchToken()
       if (!token) {
         setError('Not authenticated. Please sign in again.')

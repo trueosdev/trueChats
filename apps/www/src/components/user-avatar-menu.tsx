@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useColorTheme } from "@/hooks/useColorTheme";
+import { OPEN_AV_SETTINGS_EVENT } from "@/hooks/useMediaPermissions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeAvatarImage } from "@/components/ui/theme-avatar";
 import {
@@ -28,6 +29,16 @@ export function UserAvatarMenu() {
   const router = useRouter();
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [avSettingsOpen, setAvSettingsOpen] = useState(false);
+
+  // Other parts of the app (e.g. a call attempt that found the OS mic/camera
+  // permission revoked) can ask us to surface this dialog by dispatching
+  // `truechats:open-av-settings`. The dialog's own banner then explains what
+  // to fix and links to System Settings.
+  useEffect(() => {
+    const onOpenRequest = () => setAvSettingsOpen(true);
+    window.addEventListener(OPEN_AV_SETTINGS_EVENT, onOpenRequest);
+    return () => window.removeEventListener(OPEN_AV_SETTINGS_EVENT, onOpenRequest);
+  }, []);
 
   const handleLogout = async () => {
     await signOut();
@@ -70,7 +81,11 @@ export function UserAvatarMenu() {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full p-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-full p-0 shadow-[0_0_8px_rgba(255,255,255,0.25)] transition-shadow duration-200 hover:shadow-[0_0_12px_rgba(255,255,255,0.45)]"
+          >
             <Avatar className="h-9 w-9">
               <ThemeAvatarImage avatarUrl={user.user_metadata?.avatar_url} alt={displayName} />
             </Avatar>

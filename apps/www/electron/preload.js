@@ -44,4 +44,26 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.removeListener(channel, handler);
     };
   },
+
+  /**
+   * macOS TCC / Windows Privacy Settings helpers. On Linux these resolve
+   * as if permission is granted and the renderer should fall back to the
+   * browser's own `getUserMedia` flow.
+   *
+   * `kind` is "microphone" | "camera" | "screen".
+   */
+  mediaPermissions: {
+    /** @returns {Promise<"granted"|"denied"|"not-determined"|"restricted"|"unknown">} */
+    getStatus: (kind) => ipcRenderer.invoke("media-permission:status", kind),
+    /**
+     * Fire the macOS TCC prompt. Resolves `true` once access is granted.
+     * If status is already `denied`, resolves `false` without prompting —
+     * call `openSettings(kind)` to deep-link the user to the correct pane.
+     * @returns {Promise<boolean>}
+     */
+    request: (kind) => ipcRenderer.invoke("media-permission:request", kind),
+    /** @returns {Promise<boolean>} */
+    openSettings: (kind) =>
+      ipcRenderer.invoke("media-permission:open-settings", kind),
+  },
 });

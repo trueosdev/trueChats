@@ -17,6 +17,8 @@ const APP_NAME = "trueChats";
 // Windows uses this ID to group notifications/taskbar icons. Must be set before any Notification is shown.
 const APP_USER_MODEL_ID = "dev.trueos.chats";
 const PROD_URL = process.env.ELECTRON_START_URL || "https://chats.trueos.dev";
+let mainWindow = null;
+let isQuitting = false;
 
 function buildMenu() {
   const isMac = process.platform === "darwin";
@@ -136,6 +138,16 @@ function createWindow() {
   win.once("ready-to-show", () => {
     void ensureMacOSMediaAccess();
   });
+
+  // Keep the app alive in the background when the user closes the window.
+  // The app only quits when the user explicitly chooses Quit / Cmd+Q.
+  win.on("close", (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    win.hide();
+  });
+
+  mainWindow = win;
 }
 
 app.setName(APP_NAME);
@@ -369,33 +381,111 @@ function setupDisplayMediaHandler() {
 }
 
 /**
- * macOS: trigger TCC prompts so the app appears in Privacy → Microphone / Camera.
- * Electron’s in-page prompt alone is often not enough for the OS gate.
+ * Read the macOS TCC status for a given media kind. Returns Chromium's
+ * `"not-determined" | "granted" | "denied" | "restricted" | "unknown"` strings.
+ * On non-macOS we can't introspect the OS gate, so we return `"granted"` and
+ * let Chromium's own `getUserMedia` result speak for itself.
+ */
+function getMediaAccessStatus(kind) {
+  if (process.platform !== "darwin") return "granted";
+  try {
+    return systemPreferences.getMediaAccessStatus?.(kind) ?? "unknown";
+  } catch (e) {
+    console.warn("[electron] getMediaAccessStatus failed:", e?.message ?? e);
+    return "unknown";
+  }
+}
+
+/**
+ * Fire the macOS TCC prompt for `microphone` or `camera`. Returns `true` if
+ * access is now granted (either just allowed or already allowed).
+ *
+ * NOTE: `askForMediaAccess` only triggers the OS prompt the *first* time per
+ * app identity — if TCC already has a "denied" answer saved, this resolves
+ * `false` without showing anything. In that case the renderer should call
+ * `open-media-settings` to deep-link the user to the correct pane instead.
+ */
+async function requestMediaAccess(kind) {
+  if (process.platform !== "darwin") return true;
+  if (kind !== "microphone" && kind !== "camera") return false;
+  try {
+    const result = await systemPreferences.askForMediaAccess(kind);
+    if (process.env.ELECTRON_DEBUG_PERMISSIONS) {
+      console.log(`[electron] askForMediaAccess(${kind}) =>`, result);
+    }
+    return Boolean(result);
+  } catch (e) {
+    console.warn(`[electron] askForMediaAccess(${kind}) failed:`, e?.message ?? e);
+    return false;
+  }
+}
+
+/**
+ * Deep-link to the OS privacy pane for a given media kind. macOS and Windows
+ * expose stable URL schemes for this; on Linux we fall back to opening a
+ * generic settings page since behavior varies by desktop environment.
+ */
+async function openMediaSettings(kind) {
+  const mac = {
+    microphone:
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
+    camera:
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera",
+    screen:
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+  };
+  const win = {
+    microphone: "ms-settings:privacy-microphone",
+    camera: "ms-settings:privacy-webcam",
+    screen: "ms-settings:privacy-broadfilesystemaccess",
+  };
+
+  let url = null;
+  if (process.platform === "darwin") url = mac[kind];
+  else if (process.platform === "win32") url = win[kind];
+
+  if (!url) return false;
+  try {
+    await shell.openExternal(url);
+    return true;
+  } catch (e) {
+    console.warn("[electron] openMediaSettings failed:", e?.message ?? e);
+    return false;
+  }
+}
+
+ipcMain.handle("media-permission:status", (_event, kind) => {
+  return getMediaAccessStatus(kind);
+});
+
+ipcMain.handle("media-permission:request", async (_event, kind) => {
+  return requestMediaAccess(kind);
+});
+
+ipcMain.handle("media-permission:open-settings", async (_event, kind) => {
+  return openMediaSettings(kind);
+});
+
+/**
+ * One-time, cold-start best-effort prompt. Only fires the OS dialog when TCC
+ * has never been asked — we deliberately skip `denied` so we don't look like
+ * we're ignoring the user (reaskForMediaAccess is a no-op in that state and
+ * just caches more "denied" results). Runtime prompts live in the renderer.
  */
 async function ensureMacOSMediaAccess() {
   if (process.platform !== "darwin") return;
 
-  const micStatus = systemPreferences.getMediaAccessStatus?.("microphone");
-  const camStatus = systemPreferences.getMediaAccessStatus?.("camera");
+  const micStatus = getMediaAccessStatus("microphone");
+  const camStatus = getMediaAccessStatus("camera");
   if (process.env.ELECTRON_DEBUG_PERMISSIONS) {
-    console.log("[electron] media status before ask:", { micStatus, camStatus });
+    console.log("[electron] media status at launch:", { micStatus, camStatus });
   }
 
-  try {
-    const mic = await systemPreferences.askForMediaAccess("microphone");
-    if (process.env.ELECTRON_DEBUG_PERMISSIONS) {
-      console.log("[electron] askForMediaAccess(microphone) =>", mic);
-    }
-  } catch (e) {
-    console.warn("[electron] microphone access request:", e?.message ?? e);
+  if (micStatus === "not-determined") {
+    await requestMediaAccess("microphone");
   }
-  try {
-    const cam = await systemPreferences.askForMediaAccess("camera");
-    if (process.env.ELECTRON_DEBUG_PERMISSIONS) {
-      console.log("[electron] askForMediaAccess(camera) =>", cam);
-    }
-  } catch (e) {
-    console.warn("[electron] camera access request:", e?.message ?? e);
+  if (camStatus === "not-determined") {
+    await requestMediaAccess("camera");
   }
 }
 
@@ -433,10 +523,15 @@ app.whenReady().then(async () => {
   }
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      return;
+    }
+    createWindow();
   });
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+app.on("before-quit", () => {
+  isQuitting = true;
 });

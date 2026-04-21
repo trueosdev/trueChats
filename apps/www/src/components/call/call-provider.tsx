@@ -24,6 +24,7 @@ import {
   DEFAULT_CALL_RINGBACK_SRC,
   DEFAULT_CALL_RINGTONE_SRC,
 } from "@/components/call/default-call-ringtone";
+import { ensureCallPermissions } from "@/hooks/useMediaPermissions";
 
 export type CallState = "idle" | "connected" | "incoming";
 
@@ -224,6 +225,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
     ) => {
       if (!user || callStateRef.current !== "idle") return;
 
+      // Pre-flight OS/browser permissions before we burn a LiveKit token and
+      // commit the UI to "connected" — otherwise we'd briefly sit in a room
+      // that can never acquire media.
+      const permCheck = await ensureCallPermissions(
+        type === "video" ? "video" : "audio",
+      );
+      if (!permCheck.ok) return;
+
       const room = getCallRoomName(targetConversationId);
       const displayName =
         user.user_metadata?.fullname ||
@@ -275,6 +284,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const signal = pendingSignalRef.current;
     const currentRoomName = roomName;
     if (!signal || !currentRoomName) return;
+
+    // Accepting an incoming call requires the same mic (+ camera) access as
+    // starting one; block here with the same UI fallback the starter uses.
+    const permCheck = await ensureCallPermissions(
+      signal.callType === "video" ? "video" : "audio",
+    );
+    if (!permCheck.ok) return;
 
     const displayName =
       user.user_metadata?.fullname ||

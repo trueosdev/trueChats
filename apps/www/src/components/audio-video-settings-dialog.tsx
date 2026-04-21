@@ -1,31 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, Mic, Volume2, Video, Sparkles, RotateCcw, Play } from "lucide-react";
+import {
+  X,
+  Mic,
+  Volume2,
+  Video,
+  Sparkles,
+  RotateCcw,
+  Play,
+  ExternalLink,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import {
   useAudioSettings,
   type AudioQuality,
   type AudioSettings,
 } from "@/hooks/useAudioSettings";
+import { useMediaPermissions } from "@/hooks/useMediaPermissions";
 
 type Device = { deviceId: string; label: string };
 
 function deviceLabel(d: MediaDeviceInfo, fallbackPrefix: string, index: number) {
   return d.label?.trim() || `${fallbackPrefix} ${index + 1}`;
-}
-
-async function requestMediaPermissions() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
-    stream.getTracks().forEach((t) => t.stop());
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function enumerateDevices() {
@@ -410,10 +407,16 @@ export function AudioVideoSettingsDialog({
   onOpenChange,
 }: AudioVideoSettingsDialogProps) {
   const { settings, updateSettings, resetSettings } = useAudioSettings();
+  const {
+    micStatus,
+    cameraStatus,
+    refresh: refreshPermissions,
+    ensureAccess,
+    openSettings,
+  } = useMediaPermissions();
   const [mics, setMics] = useState<Device[]>([]);
   const [speakers, setSpeakers] = useState<Device[]>([]);
   const [cameras, setCameras] = useState<Device[]>([]);
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [speakerTesting, setSpeakerTesting] = useState(false);
 
   const loadDevices = useCallback(async () => {
@@ -422,9 +425,8 @@ export function AudioVideoSettingsDialog({
       setMics(mics);
       setSpeakers(speakers);
       setCameras(cameras);
-      setPermissionGranted(mics.some((m) => m.label) || cameras.some((c) => c.label));
     } catch {
-      setPermissionGranted(false);
+      // enumerateDevices doesn't throw in practice, but fall back silently.
     }
   }, []);
 
@@ -432,6 +434,7 @@ export function AudioVideoSettingsDialog({
     if (!open) return;
 
     void loadDevices();
+    void refreshPermissions();
 
     const onDeviceChange = () => {
       void loadDevices();
@@ -440,13 +443,31 @@ export function AudioVideoSettingsDialog({
     return () => {
       navigator.mediaDevices?.removeEventListener?.("devicechange", onDeviceChange);
     };
-  }, [open, loadDevices]);
+  }, [open, loadDevices, refreshPermissions]);
+
+  const anyPermissionMissing =
+    micStatus !== "granted" || cameraStatus !== "granted";
+  const anyPermissionDenied =
+    micStatus === "denied" || cameraStatus === "denied";
 
   const handleGrantPermission = useCallback(async () => {
-    const ok = await requestMediaPermissions();
-    setPermissionGranted(ok);
-    if (ok) await loadDevices();
-  }, [loadDevices]);
+    // Prompt for both. `ensureAccess` resolves immediately for already-granted
+    // kinds, so this is safe to call every time the banner is tapped.
+    const [mic, cam] = await Promise.all([
+      ensureAccess("microphone"),
+      ensureAccess("camera"),
+    ]);
+    if (mic === "granted" || cam === "granted") {
+      await loadDevices();
+    }
+  }, [ensureAccess, loadDevices]);
+
+  const handleOpenSettings = useCallback(
+    async (kind: "microphone" | "camera") => {
+      await openSettings(kind);
+    },
+    [openSettings],
+  );
 
   const handleTestSpeaker = useCallback(async () => {
     if (speakerTesting) return;
@@ -463,8 +484,6 @@ export function AudioVideoSettingsDialog({
 
   if (!open) return null;
 
-  const labelsUnavailable = permissionGranted === false;
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -476,7 +495,7 @@ export function AudioVideoSettingsDialog({
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4">
           <h2 className="text-base font-semibold text-black dark:text-white flex-1">
-            Audio &amp; Video Settings
+            Audio / Video Settings
           </h2>
           <button
             onClick={() => onOpenChange(false)}
@@ -489,19 +508,58 @@ export function AudioVideoSettingsDialog({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-5">
-          {labelsUnavailable && (
-            <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200">
-              <div className="text-[12px] leading-snug">
-                Grant microphone and camera access to pick specific devices.
+          {anyPermissionMissing && (
+            <div className="flex items-start justify-between gap-3 px-3.5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200">
+              <div className="text-[12px] leading-snug flex-1">
+                {anyPermissionDenied ? (
+                  <>
+                    <span className="font-medium">
+                      {micStatus === "denied" && cameraStatus === "denied"
+                        ? "Microphone and camera"
+                        : micStatus === "denied"
+                          ? "Microphone"
+                          : "Camera"}{" "}
+                      access is blocked.
+                    </span>{" "}
+                    Open System Settings to re-enable.
+                  </>
+                ) : (
+                  <>Grant microphone and camera access to pick specific devices.</>
+                )}
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleGrantPermission}
-                className="h-7 rounded-lg text-[11px] font-medium shrink-0"
-              >
-                Grant access
-              </Button>
+              {anyPermissionDenied ? (
+                <div className="flex flex-col gap-1 shrink-0">
+                  {micStatus === "denied" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenSettings("microphone")}
+                      className="h-7 rounded-lg text-[11px] font-medium flex items-center gap-1"
+                    >
+                      <ExternalLink size={11} /> Mic
+                    </Button>
+                  )}
+                  {cameraStatus === "denied" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenSettings("camera")}
+                      className="h-7 rounded-lg text-[11px] font-medium flex items-center gap-1"
+                    >
+                      <ExternalLink size={11} /> Camera
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGrantPermission}
+                  className="h-7 rounded-lg text-[11px] font-medium shrink-0"
+                >
+                  Grant access
+                </Button>
+              )}
             </div>
           )}
 
@@ -561,9 +619,6 @@ export function AudioVideoSettingsDialog({
                 speakers, turn on Echo Cancellation below to prevent feedback.
               </p>
             )}
-            <p className="text-[11px] text-black/35 dark:text-white/35 mt-1.5 leading-snug">
-              Quality changes apply to your next call.
-            </p>
           </Section>
 
           {/* Audio Processing */}
