@@ -20,7 +20,10 @@ import {
   type CallType,
 } from "@/lib/services/calls";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { DEFAULT_CALL_RINGTONE_SRC } from "@/components/call/default-call-ringtone";
+import {
+  DEFAULT_CALL_RINGBACK_SRC,
+  DEFAULT_CALL_RINGTONE_SRC,
+} from "@/components/call/default-call-ringtone";
 
 export type CallState = "idle" | "connected" | "incoming";
 
@@ -61,6 +64,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [livekitToken, setLivekitToken] = useState<string | null>(null);
   const [roomName, setRoomName] = useState<string | null>(null);
   const [isMinimized, setMinimized] = useState(false);
+  // True for the caller between `offer` sent and `answer` received. Drives
+  // the outgoing ringback tone — there's no separate `outgoing` callState
+  // because the caller has already joined the LiveKit room (just alone).
+  const [isAwaitingAnswer, setIsAwaitingAnswer] = useState(false);
 
   const pendingSignalRef = useRef<CallSignal | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -80,6 +87,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setLivekitToken(null);
     setRoomName(null);
     setMinimized(false);
+    setIsAwaitingAnswer(false);
     pendingSignalRef.current = null;
   }, []);
 
@@ -108,10 +116,17 @@ export function CallProvider({ children }: { children: ReactNode }) {
         break;
       }
       case "answer": {
+        // Remote picked up — kill the ringback tone for the caller.
+        setIsAwaitingAnswer(false);
         break;
       }
       case "reject":
       case "busy": {
+        // Remote declined / was busy — also stop the ringback. We leave the
+        // caller in `connected` (alone in the room) so existing UI affordances
+        // for hanging up still work; this preserves prior behavior aside from
+        // silencing the tone.
+        setIsAwaitingAnswer(false);
         break;
       }
       case "hangup": {
@@ -156,7 +171,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       // Autoplay policy may block until a user gesture; ring is best-effort.
     });
 
-    const maxRingMs = 15_000;
+    const maxRingMs = 30_000;
     const stopTimer = window.setTimeout(stopRing, maxRingMs);
 
     return () => {
@@ -164,6 +179,41 @@ export function CallProvider({ children }: { children: ReactNode }) {
       stopRing();
     };
   }, [callState]);
+
+  // Outgoing ringback: plays for the caller while waiting on the callee to
+  // answer. The cleanup runs as soon as `isAwaitingAnswer` flips false (which
+  // is what happens when the `answer` signal arrives, the call is rejected,
+  // or anyone hangs up).
+  useEffect(() => {
+    if (!isAwaitingAnswer) return;
+
+    const audio = new Audio(DEFAULT_CALL_RINGBACK_SRC);
+    audio.loop = true;
+    audio.volume = 0.6;
+
+    const stopRing = () => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.removeAttribute("src");
+      audio.load();
+    };
+
+    void audio.play().catch(() => {
+      // Autoplay policy may block until a user gesture; ringback is best-effort.
+    });
+
+    // Match the incoming-ring cap so we don't loop forever if the callee
+    // drops off the network without sending answer/reject.
+    const maxRingMs = 30_000;
+    const stopTimer = window.setTimeout(() => {
+      setIsAwaitingAnswer(false);
+    }, maxRingMs);
+
+    return () => {
+      window.clearTimeout(stopTimer);
+      stopRing();
+    };
+  }, [isAwaitingAnswer]);
 
   const startCall = useCallback(
     async (
@@ -207,6 +257,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
           roomName: room,
           timestamp: new Date().toISOString(),
         });
+
+        // Start the ringback only after the offer is in flight; if the offer
+        // throws we'll have already entered the `catch` and reset.
+        setIsAwaitingAnswer(true);
       } catch {
         resetCall();
       }

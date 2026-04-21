@@ -13,7 +13,12 @@ export function IncomingCallOverlay() {
 
   return (
     <div className="fixed top-4 right-4 z-[200] animate-in slide-in-from-top-4 fade-in duration-300">
-      <div className="flex min-w-[18rem] items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 shadow-2xl backdrop-blur-xl">
+      {/*
+        Outer wrapper owns the pulsing ring so it can animate `box-shadow`
+        independently of any shadows on the inner card.
+      */}
+      <div className="rounded-2xl incoming-call-pulse">
+        <div className="flex min-w-[18rem] items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 backdrop-blur-xl">
         <div className="relative">
           <Avatar className="h-10 w-10 shrink-0">
             <ThemeAvatarImage
@@ -46,6 +51,7 @@ export function IncomingCallOverlay() {
             <Phone className="h-3.5 w-3.5" />
             Accept
           </Button>
+        </div>
         </div>
       </div>
     </div>
