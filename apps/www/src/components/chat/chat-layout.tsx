@@ -38,6 +38,7 @@ import {
 import { Snail } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useDesktopNotifications } from "@/hooks/useDesktopNotifications";
+import { subscribeToPresence } from "@/lib/services/presence";
 
 /** `react-resizable-panels` v4 treats numeric sizes as px; persisted layout uses % (0–100). */
 function panelDefaultSize(value: number): number | string {
@@ -101,8 +102,29 @@ export function ChatLayout({
   const setLoomUnreadCounts = useChatStore((state) => state.setLoomUnreadCounts);
   const setThreadUnreadCounts = useChatStore((state) => state.setThreadUnreadCounts);
   const markThreadRead = useChatStore((state) => state.markThreadRead);
+  const setOnlineUserIds = useChatStore((state) => state.setOnlineUserIds);
 
   useDesktopNotifications();
+
+  // Single presence subscription for the whole app. Supabase only allows one
+  // channel per name per client, so Sidebar / ChatTopbar / etc. must read from
+  // the store instead of each opening their own "online-users" channel.
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = subscribeToPresence(user.id, (presences) => {
+      const ids = new Set<string>();
+      Object.keys(presences).forEach((key) => {
+        if (presences[key]?.length > 0) ids.add(key);
+      });
+      setOnlineUserIds(ids);
+    });
+
+    return () => {
+      channel.unsubscribe();
+      setOnlineUserIds(new Set());
+    };
+  }, [user, setOnlineUserIds]);
 
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
   const loomRailMeasureRef = useRef<HTMLDivElement | null>(null);

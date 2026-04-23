@@ -30,6 +30,12 @@ interface State {
   loomLoading: boolean;
   loomUnreadCounts: Record<string, number>;
   threadUnreadCounts: Record<string, number>;
+  /**
+   * Set of user ids currently online, derived from the single shared
+   * Supabase presence channel. Populated once at the layout level and
+   * consumed by anything that wants to show an "online" dot.
+   */
+  onlineUserIds: Set<string>;
 }
 
 interface Actions {
@@ -80,6 +86,7 @@ interface Actions {
    * dot and thread row update in the same render (no waiting on realtime).
    */
   markThreadRead: (threadId: string) => void;
+  setOnlineUserIds: (ids: Set<string>) => void;
 }
 
 const useChatStore = create<State & Actions>()((set) => ({
@@ -101,6 +108,7 @@ const useChatStore = create<State & Actions>()((set) => ({
   loomLoading: false,
   loomUnreadCounts: {},
   threadUnreadCounts: {},
+  onlineUserIds: new Set<string>(),
 
   setInput: (input) => set({ input }),
   handleInputChange: (
@@ -237,6 +245,7 @@ const useChatStore = create<State & Actions>()((set) => ({
       loomUnreadCounts: nextLoomCounts,
     };
   }),
+  setOnlineUserIds: (ids) => set({ onlineUserIds: ids }),
 }));
 
 export default useChatStore;

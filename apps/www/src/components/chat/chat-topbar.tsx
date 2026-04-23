@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Avatar } from "../ui/avatar";
 import { ThemeAvatarImage } from "../ui/theme-avatar";
 import { ConversationWithUser } from "@/app/data";
@@ -8,9 +8,8 @@ import { Phone, Video, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "../ui/button";
 import { ExpandableChatHeader } from "@shadcn-chat/ui";
-import { subscribeToPresence } from "@/lib/services/presence";
-import { useAuth } from "@/hooks/useAuth";
 import { useCall } from "@/components/call/call-provider";
+import useChatStore from "@/hooks/useChatStore";
 
 interface ChatTopbarProps {
   conversation: ConversationWithUser;
@@ -18,28 +17,13 @@ interface ChatTopbarProps {
 }
 
 export default function ChatTopbar({ conversation, onShowSearch }: ChatTopbarProps) {
-  const { user } = useAuth();
   const { startCall, callState } = useCall();
-  const [isOnline, setIsOnline] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const otherUser = conversation.other_user;
-    if (!otherUser) return;
-
-    const channel = subscribeToPresence(user.id, (presences) => {
-      const userPresence = presences[otherUser.id];
-      setIsOnline(!!userPresence && userPresence.length > 0);
-    });
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [user, conversation]);
+  const onlineUserIds = useChatStore((state) => state.onlineUserIds);
 
   const otherUser = conversation.other_user;
   if (!otherUser) return null;
+
+  const isOnline = onlineUserIds.has(otherUser.id);
 
   const displayName = otherUser.fullname || otherUser.username || otherUser.email || "Unknown";
 

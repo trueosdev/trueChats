@@ -19,8 +19,8 @@ import { UserAvatarMenu } from "./user-avatar-menu";
 import { Skeleton } from "./ui/skeleton";
 import { UnreadBadge } from "./ui/unread-badge";
 import { NewChatDialog } from "./new-chat-dialog";
-import { subscribeToPresence } from "@/lib/services/presence";
 import { useAuth } from "@/hooks/useAuth";
+import useChatStore from "@/hooks/useChatStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -144,29 +144,13 @@ function previewForLastMessage(
 
 export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatCreated, onPendingChats, pendingRequestCount = 0, loading = false, customNav }: SidebarProps) {
   const { user } = useAuth();
+  const onlineUserIds = useChatStore((state) => state.onlineUserIds);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [isElectron, setIsElectron] = useState<boolean | null>(null);
-  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setIsElectron(Boolean((window as { electronAPI?: unknown }).electronAPI));
   }, []);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = subscribeToPresence(user.id, (presences) => {
-      const ids = new Set<string>();
-      Object.keys(presences).forEach((key) => {
-        if (presences[key]?.length > 0) ids.add(key);
-      });
-      setOnlineUserIds(ids);
-    });
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [user]);
 
   return (
     <div
