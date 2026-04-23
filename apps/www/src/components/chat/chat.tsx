@@ -20,8 +20,10 @@ export function Chat({ conversation, isMobile }: ChatProps) {
   const { user } = useAuth();
   const messages = useChatStore((state) => state.messages);
   const setMessages = useChatStore((state) => state.setMessages);
+  const setConversationMessages = useChatStore(
+    (state) => state.setConversationMessages,
+  );
   const addMessage = useChatStore((state) => state.addMessage);
-  const setLoading = useChatStore((state) => state.setLoading);
   const [typingUsers, setTypingUsers] = useState<TypingState[]>([]);
   const [typingChannel, setTypingChannel] = useState<RealtimeChannel | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -29,23 +31,35 @@ export function Chat({ conversation, isMobile }: ChatProps) {
   useEffect(() => {
     if (!conversation || !user) return;
 
-    setLoading(true);
-    getMessages(conversation.id).then((data) => {
-      setMessages(data);
-      setLoading(false);
-      markMessagesAsRead(conversation.id, user.id).then(() => {
-        useChatStore.getState().setUnreadCount(conversation.id, 0);
+    const convId = conversation.id;
+
+    // Hydrate from cache for instant switch. If we've opened this chat
+    // before, its messages show immediately (no skeleton, no "frozen"
+    // stale-other-chat flash). Otherwise start empty and let the fetch
+    // populate below. IMPORTANT: we do NOT toggle the global `loading`
+    // here — that flag drives the sidebar skeleton and must only reflect
+    // the initial conversations fetch.
+    const cached = useChatStore.getState().messagesByConversation[convId];
+    setMessages(cached ?? []);
+
+    let cancelled = false;
+    getMessages(convId).then((data) => {
+      if (cancelled) return;
+      // Writes cache and (if still the active chat) the live messages array.
+      setConversationMessages(convId, data);
+      markMessagesAsRead(convId, user.id).then(() => {
+        useChatStore.getState().setUnreadCount(convId, 0);
       });
     });
 
     const unsubscribe = subscribeToMessages(
-      conversation.id,
+      convId,
       (message) => {
         addMessage(message);
 
         if (message.sender_id !== user.id) {
-          markMessagesAsRead(conversation.id, user.id).then(() => {
-            useChatStore.getState().setUnreadCount(conversation.id, 0);
+          markMessagesAsRead(convId, user.id).then(() => {
+            useChatStore.getState().setUnreadCount(convId, 0);
           });
         }
       },
@@ -53,7 +67,7 @@ export function Chat({ conversation, isMobile }: ChatProps) {
     );
 
     const channel = subscribeToTypingIndicator(
-      conversation.id,
+      convId,
       user.id,
       (typing) => {
         setTypingUsers(typing);
@@ -62,6 +76,7 @@ export function Chat({ conversation, isMobile }: ChatProps) {
     setTypingChannel(channel);
 
     return () => {
+      cancelled = true;
       unsubscribe();
       if (channel) {
         channel.unsubscribe();
@@ -77,7 +92,12 @@ export function Chat({ conversation, isMobile }: ChatProps) {
         onShowSearch={() => setShowSearch(true)}
       />
 
+      {/* key on conversation.id forces a fresh mount per chat so the
+          internal scroll state in useAutoScroll resets — opening a chat
+          always lands at the bottom, even if the previous chat was
+          scrolled up. */}
       <ChatList
+        key={conversation.id}
         messages={messages}
         conversation={conversation}
         isMobile={isMobile}

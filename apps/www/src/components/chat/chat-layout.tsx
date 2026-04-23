@@ -71,6 +71,7 @@ export function ChatLayout({
 
   const conversations = useChatStore((state) => state.conversations);
   const selectedConversationId = useChatStore((state) => state.selectedConversationId);
+  const conversationsLoading = useChatStore((state) => state.loading);
   const unreadCounts = useChatStore((state) => state.unreadCounts);
   const pendingRequestCount = useChatStore((state) => state.pendingRequestCount);
   const viewMode = useChatStore((state) => state.viewMode);
@@ -495,7 +496,7 @@ export function ChatLayout({
           unreadCount: unreadCounts[conv.id] || 0,
         }))}
         isMobile={isMobile}
-        loading={useChatStore.getState().loading}
+        loading={conversationsLoading}
         onChatSelect={(conversationId) => {
           setSelectedConversationId(conversationId);
           setShowPendingChats(false);

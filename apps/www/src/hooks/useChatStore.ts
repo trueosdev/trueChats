@@ -13,6 +13,12 @@ type ViewMode = 'dms' | 'looms';
 interface State {
   input: string;
   messages: Message[];
+  /**
+   * Per-conversation message cache. Lets the chat view re-open a previously
+   * opened conversation instantly (no skeleton flash) while we refresh in
+   * the background. Keyed by conversation id.
+   */
+  messagesByConversation: Record<string, Message[]>;
   conversations: ConversationWithUser[];
   selectedConversationId: string | null;
   loading: boolean;
@@ -46,6 +52,12 @@ interface Actions {
       | React.ChangeEvent<HTMLTextAreaElement>,
   ) => void;
   setMessages: (messages: Message[]) => void;
+  /**
+   * Write `messages` into the per-conversation cache, and (if `convId` is
+   * the currently selected conversation) also into the live `messages`
+   * array so the open chat renders immediately.
+   */
+  setConversationMessages: (convId: string, messages: Message[]) => void;
   addMessage: (message: Message) => void;
   updateMessage: (messageId: string, updates: Partial<Message>) => void;
   setConversations: (conversations: ConversationWithUser[]) => void;
@@ -92,6 +104,7 @@ interface Actions {
 const useChatStore = create<State & Actions>()((set) => ({
   input: "",
   messages: [],
+  messagesByConversation: {},
   conversations: [],
   selectedConversationId: null,
   loading: false,
@@ -118,17 +131,62 @@ const useChatStore = create<State & Actions>()((set) => ({
   ) => set({ input: e.target.value }),
 
   setMessages: (messages) => set({ messages }),
-  addMessage: (message) => set((state) => {
-    const exists = state.messages.some(m => m.id === message.id);
-    if (exists) return state;
-    
-    return { messages: [...state.messages, message] };
+  setConversationMessages: (convId, messages) => set((state) => {
+    const isActive = state.selectedConversationId === convId;
+    return {
+      messagesByConversation: {
+        ...state.messagesByConversation,
+        [convId]: messages,
+      },
+      messages: isActive ? messages : state.messages,
+    };
   }),
-  updateMessage: (messageId, updates) => set((state) => ({
-    messages: state.messages.map((msg) =>
-      msg.id === messageId ? { ...msg, ...updates } : msg
-    ),
-  })),
+  addMessage: (message) => set((state) => {
+    const convId = message.conversation_id;
+    const isActive =
+      convId !== undefined && state.selectedConversationId === convId;
+
+    const nextMessages = (() => {
+      if (!isActive) return state.messages;
+      if (state.messages.some((m) => m.id === message.id)) return state.messages;
+      return [...state.messages, message];
+    })();
+
+    let nextCache = state.messagesByConversation;
+    if (convId) {
+      const cached = state.messagesByConversation[convId] ?? [];
+      if (!cached.some((m) => m.id === message.id)) {
+        nextCache = {
+          ...state.messagesByConversation,
+          [convId]: [...cached, message],
+        };
+      }
+    }
+
+    return { messages: nextMessages, messagesByConversation: nextCache };
+  }),
+  updateMessage: (messageId, updates) => set((state) => {
+    const nextMessages = state.messages.map((msg) =>
+      msg.id === messageId ? { ...msg, ...updates } : msg,
+    );
+
+    // Mirror the edit into any cache slice that contains this message so
+    // reopening the conversation shows the edited content without another
+    // fetch. Only touched slices get a fresh array reference.
+    let nextCache = state.messagesByConversation;
+    for (const convId in state.messagesByConversation) {
+      const slice = state.messagesByConversation[convId];
+      if (!slice.some((m) => m.id === messageId)) continue;
+      if (nextCache === state.messagesByConversation) {
+        nextCache = { ...state.messagesByConversation };
+      }
+      nextCache[convId] = slice.map((msg) =>
+        msg.id === messageId ? { ...msg, ...updates } : msg,
+      );
+    }
+
+    return { messages: nextMessages, messagesByConversation: nextCache };
+  }),
 
   setConversations: (conversations) => set({ conversations }),
   addConversation: (conversation) => set((state) => {

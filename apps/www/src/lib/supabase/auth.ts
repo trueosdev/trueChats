@@ -1,11 +1,38 @@
 import { supabase } from './client'
 
+const DEFAULT_SITE_ORIGIN = 'https://chats.trueos.dev'
+
+/**
+ * Canonical public URL for the app.
+ *
+ * Priority:
+ * 1) NEXT_PUBLIC_SITE_URL (explicit env override)
+ * 2) localhost current origin (for local development only)
+ * 3) production canonical domain
+ *
+ * This prevents password-reset / email-confirm links from inheriting Vercel
+ * preview URLs and always drives users through the canonical app domain.
+ */
+function getSiteOrigin(): string | undefined {
+  const env = process.env.NEXT_PUBLIC_SITE_URL
+  if (env) return env.replace(/\/$/, '')
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1'
+    if (isLocalhost) return window.location.origin
+  }
+
+  return DEFAULT_SITE_ORIGIN
+}
+
 export async function signUp(email: string, password: string, username: string, fullname?: string) {
+  const origin = getSiteOrigin()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+      emailRedirectTo: origin ? `${origin}/auth/callback` : undefined,
       data: {
         username,
         fullname: fullname || '',
@@ -109,10 +136,10 @@ export async function resetPassword(emailOrUsername: string) {
     email = foundEmail
   }
 
-  const redirectTo =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/auth/callback?next=/auth/reset-password`
-      : undefined
+  const origin = getSiteOrigin()
+  const redirectTo = origin
+    ? `${origin}/auth/callback?next=/auth/reset-password`
+    : undefined
 
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
