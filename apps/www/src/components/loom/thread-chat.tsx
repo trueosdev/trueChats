@@ -136,6 +136,7 @@ export function ThreadChat({ thread, loom, isMobile }: ThreadChatProps) {
       />
 
       <ChatList
+        key={thread.id}
         messages={threadMessages}
         conversation={conversationShim}
         isMobile={isMobile}
