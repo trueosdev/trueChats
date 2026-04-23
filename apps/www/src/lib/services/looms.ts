@@ -499,8 +499,12 @@ export function subscribeToLoomInvites(
   userId: string,
   callback: () => void
 ) {
+  // Use a unique channel key per subscriber so multiple components (e.g.
+  // chat-layout + pending-chats-page) can both subscribe without Supabase
+  // throwing "cannot add postgres_changes callbacks ... after subscribe()".
+  const channelKey = `loom-invites:${userId}:${Math.random().toString(36).slice(2)}`
   const channel = supabase
-    .channel(`loom-invites:${userId}`)
+    .channel(channelKey)
     .on(
       'postgres_changes',
       {
