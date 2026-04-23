@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from '@/lib/supabase/auth'
+import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
@@ -20,6 +21,40 @@ function LoginForm() {
       setError(errorParam)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash.startsWith('#')) return
+
+    const hashParams = new URLSearchParams(hash.slice(1))
+    const type = hashParams.get('type')
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+
+    if (type !== 'recovery' || !accessToken || !refreshToken) return
+
+    let isMounted = true
+
+    ;(async () => {
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+
+      if (!isMounted) return
+
+      if (error) {
+        setError('Could not verify email')
+        return
+      }
+
+      router.replace('/auth/reset-password')
+    })()
+
+    return () => {
+      isMounted = false
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
