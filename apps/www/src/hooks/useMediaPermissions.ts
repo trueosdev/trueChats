@@ -98,8 +98,10 @@ export async function getMediaPermissionStatus(
  *   `getUserMedia` to make sure the hardware is actually reachable.
  * - Plain browser: triggers the tab's own permission prompt via `getUserMedia`.
  *
- * Always attempts a final `getUserMedia` probe to flush Chromium's per-origin
- * permission cache so the next real `getUserMedia` call doesn't need a prompt.
+ * Trusts an already-`"granted"` state from the OS/browser and skips the
+ * getUserMedia probe — probing can race with LiveKit's own acquisition and
+ * flap to denied/unknown, which used to send users to the A/V settings dialog
+ * even though the real permission was fine.
  */
 export async function requestMediaPermission(
   kind: MediaKind,
@@ -114,19 +116,13 @@ export async function requestMediaPermission(
   if (mp) {
     try {
       const status = await mp.getStatus(kind);
-      if (status === "granted") {
-        return probeGetUserMedia(kind);
-      }
-      if (status === "denied" || status === "restricted") {
-        return status;
-      }
+      if (status === "granted") return "granted";
+      if (status === "denied" || status === "restricted") return status;
       // "not-determined" or "unknown" → ask the OS.
       const ok = await mp.request(kind);
-      if (!ok) {
-        const post = await mp.getStatus(kind).catch(() => "unknown" as const);
-        return post === "granted" ? "granted" : "denied";
-      }
-      return probeGetUserMedia(kind);
+      if (ok) return "granted";
+      const post = await mp.getStatus(kind).catch(() => "unknown" as const);
+      return post === "granted" ? "granted" : "denied";
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
         console.warn(
@@ -138,6 +134,12 @@ export async function requestMediaPermission(
     }
   }
 
+  // Plain browser: prefer the Permissions API so we don't eat a real
+  // getUserMedia acquisition when the user has already granted access.
+  const browserStatus = await queryBrowserPermission(kind);
+  if (browserStatus === "granted") return "granted";
+  if (browserStatus === "denied") return "denied";
+  // "not-determined" / "unknown" → probe so the browser shows its prompt.
   return probeGetUserMedia(kind);
 }
 
@@ -164,9 +166,18 @@ export async function ensureCallPermissions(
 
   const [microphone, camera] = await Promise.all([micPromise, camPromise]);
 
+  // Only treat an *explicit* `denied`/`restricted` as a hard block — ambiguous
+  // states ("not-determined" / "unknown") shouldn't short-circuit the call,
+  // because LiveKit's own getUserMedia will either prompt the user or surface
+  // a clear in-call error. Previously any non-"granted" status (including
+  // transient probe failures) sent users to the A/V settings dialog instead
+  // of starting the call.
+  const isHardBlocked = (s: MediaPermissionStatus) =>
+    s === "denied" || s === "restricted";
+
   const denied: MediaKind[] = [];
-  if (microphone !== "granted") denied.push("microphone");
-  if (kind === "video" && camera !== "granted") denied.push("camera");
+  if (isHardBlocked(microphone)) denied.push("microphone");
+  if (kind === "video" && isHardBlocked(camera)) denied.push("camera");
 
   const ok = denied.length === 0;
 

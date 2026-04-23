@@ -19,6 +19,8 @@ import { UserAvatarMenu } from "./user-avatar-menu";
 import { Skeleton } from "./ui/skeleton";
 import { UnreadBadge } from "./ui/unread-badge";
 import { NewChatDialog } from "./new-chat-dialog";
+import { subscribeToPresence } from "@/lib/services/presence";
+import { useAuth } from "@/hooks/useAuth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,6 +97,8 @@ interface SidebarProps {
     messages: Message[];
     avatar: string;
     variant: "secondary" | "ghost";
+    /** Id of the other party in the DM — used to key presence lookups. */
+    otherUserId?: string;
     /** Number of unread messages in this conversation. 0 means no badge. */
     unreadCount?: number;
     /** @deprecated prefer `unreadCount`; kept for callers that still pass a bool. */
@@ -109,13 +113,60 @@ interface SidebarProps {
   customNav?: React.ReactNode;
 }
 
+function attachmentPreviewLabel(attachmentType: string | null | undefined): string | null {
+  if (!attachmentType) return null;
+  if (attachmentType.startsWith("image/")) return "Photo";
+  if (attachmentType.startsWith("video/")) return "Video";
+  if (attachmentType.startsWith("audio/")) return "Voice message";
+  return "Attachment";
+}
+
+function previewForLastMessage(
+  lastMessage: Message,
+  currentUserId: string | undefined,
+  otherUserDisplayName: string,
+): { prefix: string; body: string } {
+  const isMe = currentUserId && lastMessage.sender_id === currentUserId;
+  const prefix = isMe ? "You" : otherUserDisplayName.split(" ")[0];
+  if (lastMessage.isLoading) {
+    return { prefix, body: "Typing..." };
+  }
+  const text = lastMessage.message?.trim();
+  if (text) {
+    return { prefix, body: text };
+  }
+  const attachmentLabel = attachmentPreviewLabel(lastMessage.attachment_type);
+  if (attachmentLabel) {
+    return { prefix, body: attachmentLabel };
+  }
+  return { prefix, body: "" };
+}
+
 export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatCreated, onPendingChats, pendingRequestCount = 0, loading = false, customNav }: SidebarProps) {
+  const { user } = useAuth();
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [isElectron, setIsElectron] = useState<boolean | null>(null);
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setIsElectron(Boolean((window as { electronAPI?: unknown }).electronAPI));
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = subscribeToPresence(user.id, (presences) => {
+      const ids = new Set<string>();
+      Object.keys(presences).forEach((key) => {
+        if (presences[key]?.length > 0) ids.add(key);
+      });
+      setOnlineUserIds(ids);
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [user]);
 
   return (
     <div
@@ -287,8 +338,16 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
             )
           ))
         ) : (
-          chats.map((chat) =>
-          isCollapsed ? (
+          chats.map((chat) => {
+          const isOnline = !!(chat.otherUserId && onlineUserIds.has(chat.otherUserId));
+          const lastMessage = chat.messages.length > 0
+            ? chat.messages[chat.messages.length - 1]
+            : null;
+          const preview = lastMessage
+            ? previewForLastMessage(lastMessage, user?.id, chat.name)
+            : null;
+
+          return isCollapsed ? (
             <TooltipProvider key={chat.id}>
               <Tooltip key={chat.id} delayDuration={0}>
                 <TooltipTrigger asChild>
@@ -312,6 +371,9 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                           />
                         </Avatar>
                       </div>
+                      {isOnline && (
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border border-background" />
+                      )}
                       <UnreadBadge
                         count={chat.unreadCount ?? (chat.hasUnread ? 1 : 0)}
                         className="absolute -top-1 -right-1"
@@ -350,6 +412,9 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
                     alt={chat.name}
                   />
                 </Avatar>
+                {isOnline && (
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border border-background" />
+                )}
                 <UnreadBadge
                   count={chat.unreadCount ?? (chat.hasUnread ? 1 : 0)}
                   className="absolute -top-1 -right-1"
@@ -357,19 +422,15 @@ export function Sidebar({ chats, isCollapsed, isMobile, onChatSelect, onNewChatC
               </div>
               <div className="flex flex-col max-w-28 text-left">
                 <span className="truncate">{chat.name}</span>
-                {chat.messages.length > 0 && (
+                {preview && preview.body && (
                   <span className="text-black dark:text-white text-xs truncate">
-                    {chat.messages[chat.messages.length - 1].name.split(" ")[0]}
-                    :{" "}
-                    {chat.messages[chat.messages.length - 1].isLoading
-                      ? "Typing..."
-                      : chat.messages[chat.messages.length - 1].message}
+                    {preview.prefix}: {preview.body}
                   </span>
                 )}
               </div>
             </button>
-          )
-        ))}
+          );
+        })) }
       </nav>
       )}
     </div>

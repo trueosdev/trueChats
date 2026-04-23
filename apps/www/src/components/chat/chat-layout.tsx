@@ -458,10 +458,13 @@ export function ChatLayout({
         chats={conversations.filter(conv => !conv.is_group).map((conv) => ({
           id: conv.id,
           name: conv.other_user?.fullname || conv.other_user?.username || conv.other_user?.email || "Unknown",
+          otherUserId: conv.other_user?.id,
           messages: conv.last_message ? [{
             id: conv.last_message.id,
             name: conv.other_user?.fullname || conv.other_user?.username || "Unknown",
+            sender_id: conv.last_message.sender_id,
             message: conv.last_message.content,
+            attachment_type: conv.last_message.attachment_type ?? null,
             timestamp: new Date(conv.last_message.created_at).toLocaleTimeString(),
             avatar: getAvatarUrl(conv.other_user?.avatar_url),
           }] : [],

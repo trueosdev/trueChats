@@ -46,6 +46,7 @@ export interface ConversationWithUser {
     content: string;
     sender_id: string;
     created_at: string;
+    attachment_type?: string | null;
   } | null;
   other_user?: {
     id: string;
