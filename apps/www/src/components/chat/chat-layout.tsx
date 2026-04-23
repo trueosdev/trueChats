@@ -26,7 +26,7 @@ import { ThreadChat } from "../loom/thread-chat";
 import { CreateLoomDialog } from "../loom/create-loom-dialog";
 import { CreateThreadDialog } from "../loom/create-thread-dialog";
 import { LoomMembersDialog } from "../loom/loom-members-dialog";
-import { getLooms, subscribeToLooms } from "@/lib/services/looms";
+import { getLooms, subscribeToLooms, getLoomInvites, subscribeToLoomInvites } from "@/lib/services/looms";
 import {
   getThreads,
   getThreadFolders,
@@ -182,9 +182,15 @@ export function ChatLayout({
       setUnreadCounts(counts);
     });
 
-    getPendingRequests(user.id).then((requests) => {
-      setPendingRequestCount(requests.length);
-    });
+    const refreshPendingCount = async () => {
+      const [requests, invites] = await Promise.all([
+        getPendingRequests(user.id),
+        getLoomInvites(user.id),
+      ]);
+      setPendingRequestCount(requests.length + invites.length);
+    };
+
+    refreshPendingCount();
 
     const unsubscribe = subscribeToConversations(user.id, (conversation) => {
       const currentConversations = useChatStore.getState().conversations;
@@ -198,15 +204,21 @@ export function ChatLayout({
 
     const unsubscribeRequests = subscribeToChatRequests(user.id, (request) => {
       if (request.status === 'pending') {
-        getPendingRequests(user.id).then((requests) => {
-          setPendingRequestCount(requests.length);
-        });
+        refreshPendingCount();
       }
+    });
+
+    const unsubscribeInvites = subscribeToLoomInvites(user.id, () => {
+      refreshPendingCount();
+      // Membership changed (invited, accepted, or removed). Refresh the
+      // user's loom list so newly-active memberships show up in the rail.
+      getLooms(user.id).then(setLooms);
     });
 
     return () => {
       unsubscribe();
       unsubscribeRequests();
+      unsubscribeInvites();
     };
   }, [user]);
 

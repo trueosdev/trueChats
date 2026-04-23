@@ -50,7 +50,9 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
   const [adding, setAdding] = useState(false)
 
   const currentMember = members.find(m => String(m.user_id) === String(user?.id))
-  const canManage = currentMember?.role === 'owner' || currentMember?.role === 'admin'
+  const canManage = (currentMember?.role === 'owner' || currentMember?.role === 'admin') && currentMember?.status === 'active'
+  const activeMembers = members.filter(m => m.status === 'active')
+  const invitedMembers = members.filter(m => m.status === 'invited')
 
   useEffect(() => {
     if (open) loadMembers()
@@ -130,7 +132,10 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
               {showAddMember ? 'Add Member' : 'Members'}
             </h2>
             {!showAddMember && (
-              <p className="text-xs text-black/50 dark:text-white/50 mt-0.5">{loomName} · {members.length} members</p>
+              <p className="text-xs text-black/50 dark:text-white/50 mt-0.5">
+                {loomName} · {activeMembers.length} {activeMembers.length === 1 ? 'member' : 'members'}
+                {invitedMembers.length > 0 && ` · ${invitedMembers.length} invited`}
+              </p>
             )}
           </div>
           <button
@@ -234,11 +239,18 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
                               {member.user.fullname || member.user.username || member.user.email}
                               {isCurrentUser && <span className="text-black/40 dark:text-white/40"> (You)</span>}
                             </p>
-                            {member.role !== 'member' && (
+                            {member.status === 'active' && member.role !== 'member' && (
                               <RoleIcon size={13} className="text-black/50 dark:text-white/50 shrink-0" />
                             )}
+                            {member.status === 'invited' && (
+                              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 text-black/60 dark:text-white/60 shrink-0">
+                                Invited
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-black/40 dark:text-white/40">{ROLE_LABELS[member.role]}</p>
+                          <p className="text-xs text-black/40 dark:text-white/40">
+                            {member.status === 'invited' ? 'Pending invite' : ROLE_LABELS[member.role]}
+                          </p>
                         </div>
 
                         {canManage && !isCurrentUser && member.role !== 'owner' && (
@@ -249,19 +261,19 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {member.role !== 'admin' && (
+                              {member.status === 'active' && member.role !== 'admin' && (
                                 <DropdownMenuItem disabled={isActingOnMember} onSelect={() => handleRoleChange(member.user_id, 'admin')}>
                                   <ShieldCheck size={14} className="mr-2" />
                                   Make Admin
                                 </DropdownMenuItem>
                               )}
-                              {member.role !== 'moderator' && (
+                              {member.status === 'active' && member.role !== 'moderator' && (
                                 <DropdownMenuItem disabled={isActingOnMember} onSelect={() => handleRoleChange(member.user_id, 'moderator')}>
                                   <Shield size={14} className="mr-2" />
                                   Make Moderator
                                 </DropdownMenuItem>
                               )}
-                              {member.role !== 'member' && (
+                              {member.status === 'active' && member.role !== 'member' && (
                                 <DropdownMenuItem disabled={isActingOnMember} onSelect={() => handleRoleChange(member.user_id, 'member')}>
                                   Demote to Member
                                 </DropdownMenuItem>
@@ -272,7 +284,7 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
                                 className="text-red-600 dark:text-red-400"
                               >
                                 <UserMinus size={14} className="mr-2" />
-                                Remove
+                                {member.status === 'invited' ? 'Revoke invite' : 'Remove'}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

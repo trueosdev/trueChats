@@ -125,21 +125,30 @@ export interface Database {
           loom_id: string
           user_id: string
           role: 'owner' | 'admin' | 'moderator' | 'member'
+          status: 'invited' | 'active'
           joined_at: string
+          invited_by: string | null
+          invited_at: string | null
         }
         Insert: {
           id?: string
           loom_id: string
           user_id: string
           role?: 'owner' | 'admin' | 'moderator' | 'member'
+          status?: 'invited' | 'active'
           joined_at?: string
+          invited_by?: string | null
+          invited_at?: string | null
         }
         Update: {
           id?: string
           loom_id?: string
           user_id?: string
           role?: 'owner' | 'admin' | 'moderator' | 'member'
+          status?: 'invited' | 'active'
           joined_at?: string
+          invited_by?: string | null
+          invited_at?: string | null
         }
       }
       threads: {

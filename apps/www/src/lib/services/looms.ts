@@ -1,5 +1,5 @@
 import { supabase } from '../supabase/client'
-import type { Loom, LoomMember, LoomMemberRole, LoomVisibility } from '@/app/data'
+import type { Loom, LoomInvite, LoomMember, LoomMemberRole, LoomVisibility } from '@/app/data'
 
 export interface CreateLoomParams {
   name: string
@@ -38,6 +38,7 @@ export async function createLoom(params: CreateLoomParams): Promise<Loom | null>
       loom_id: loom.id,
       user_id: createdBy,
       role: 'owner',
+      status: 'active',
     })
 
   if (memberError) {
@@ -86,6 +87,7 @@ export async function getLooms(userId: string): Promise<Loom[]> {
     .from('loom_members')
     .select('loom_id')
     .eq('user_id', userId)
+    .eq('status', 'active')
 
   if (memError) {
     console.error('Error fetching loom memberships:', memError)
@@ -110,6 +112,7 @@ export async function getLooms(userId: string): Promise<Loom[]> {
     .from('loom_members')
     .select('loom_id')
     .in('loom_id', loomIds)
+    .eq('status', 'active')
 
   const countMap: Record<string, number> = {}
   memberCounts?.forEach((m: any) => {
@@ -138,6 +141,7 @@ export async function getLoomById(loomId: string): Promise<Loom | null> {
     .from('loom_members')
     .select('id', { count: 'exact', head: true })
     .eq('loom_id', loomId)
+    .eq('status', 'active')
 
   return { ...data, member_count: count || 0 }
 }
@@ -213,7 +217,10 @@ export async function getLoomMembers(loomId: string): Promise<LoomMember[]> {
     loom_id: m.loom_id,
     user_id: m.user_id,
     role: m.role,
+    status: (m.status ?? 'active') as LoomMember['status'],
     joined_at: m.joined_at,
+    invited_by: m.invited_by ?? null,
+    invited_at: m.invited_at ?? null,
     user: userMap.get(m.user_id) || {
       id: m.user_id,
       username: null,
@@ -236,9 +243,18 @@ export async function addLoomMember(
     return false
   }
 
+  // New members are invited, not immediately active. They must accept from
+  // their pending chats inbox to actually join.
   const { error } = await supabase
     .from('loom_members')
-    .insert({ loom_id: loomId, user_id: userId, role })
+    .insert({
+      loom_id: loomId,
+      user_id: userId,
+      role,
+      status: 'invited',
+      invited_by: addedBy,
+      invited_at: new Date().toISOString(),
+    })
 
   if (error) {
     console.error('Error adding loom member:', error)
@@ -307,6 +323,7 @@ export async function getUserLoomRole(loomId: string, userId: string): Promise<L
     .select('role')
     .eq('loom_id', loomId)
     .eq('user_id', userId)
+    .eq('status', 'active')
     .single()
 
   if (error || !data) return null
@@ -337,6 +354,7 @@ export function subscribeToLooms(
           .select('id')
           .eq('loom_id', loom.id)
           .eq('user_id', userId)
+          .eq('status', 'active')
           .single()
 
         if (isMember.data) {
@@ -344,6 +362,7 @@ export function subscribeToLooms(
             .from('loom_members')
             .select('id', { count: 'exact', head: true })
             .eq('loom_id', loom.id)
+            .eq('status', 'active')
 
           callback({ ...loom, member_count: count || 0 })
         }
@@ -369,6 +388,126 @@ export function subscribeToLoomMembers(
         schema: 'public',
         table: 'loom_members',
         filter: `loom_id=eq.${loomId}`,
+      },
+      () => {
+        callback()
+      }
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}
+
+// --- Invites ---
+
+export async function getLoomInvites(userId: string): Promise<LoomInvite[]> {
+  const { data: invites, error } = await supabase
+    .from('loom_members')
+    .select('id, loom_id, user_id, invited_by, invited_at')
+    .eq('user_id', userId)
+    .eq('status', 'invited')
+    .order('invited_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching loom invites:', error)
+    return []
+  }
+
+  if (!invites || invites.length === 0) return []
+
+  const loomIds = invites.map((i: any) => i.loom_id)
+  const inviterIds = Array.from(
+    new Set(invites.map((i: any) => i.invited_by).filter(Boolean))
+  ) as string[]
+
+  const [loomsRes, invitersRes] = await Promise.all([
+    supabase
+      .from('looms')
+      .select('id, name, description, icon_name, icon_url, visibility')
+      .in('id', loomIds),
+    inviterIds.length > 0
+      ? supabase
+          .from('users')
+          .select('id, username, fullname, avatar_url, email')
+          .in('id', inviterIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+  ])
+
+  const loomMap = new Map((loomsRes.data || []).map((l: any) => [l.id, l]))
+  const inviterMap = new Map(
+    ((invitersRes as any).data || []).map((u: any) => [u.id, u])
+  )
+
+  return invites
+    .map((inv: any) => {
+      const loom = loomMap.get(inv.loom_id)
+      if (!loom) return null
+      return {
+        id: inv.id,
+        loom_id: inv.loom_id,
+        user_id: inv.user_id,
+        invited_by: inv.invited_by ?? null,
+        invited_at: inv.invited_at ?? null,
+        loom,
+        inviter: inv.invited_by ? inviterMap.get(inv.invited_by) ?? null : null,
+      } as LoomInvite
+    })
+    .filter((x): x is LoomInvite => x !== null)
+}
+
+export async function acceptLoomInvite(
+  loomId: string,
+  userId: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('loom_members')
+    .update({ status: 'active', joined_at: new Date().toISOString() })
+    .eq('loom_id', loomId)
+    .eq('user_id', userId)
+    .eq('status', 'invited')
+
+  if (error) {
+    console.error('Error accepting loom invite:', error)
+    return false
+  }
+
+  return true
+}
+
+export async function denyLoomInvite(
+  loomId: string,
+  userId: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('loom_members')
+    .delete()
+    .eq('loom_id', loomId)
+    .eq('user_id', userId)
+    .eq('status', 'invited')
+
+  if (error) {
+    console.error('Error denying loom invite:', error)
+    return false
+  }
+
+  return true
+}
+
+export function subscribeToLoomInvites(
+  userId: string,
+  callback: () => void
+) {
+  const channel = supabase
+    .channel(`loom-invites:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'loom_members',
+        filter: `user_id=eq.${userId}`,
       },
       () => {
         callback()

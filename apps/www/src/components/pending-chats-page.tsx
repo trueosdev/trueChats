@@ -2,10 +2,19 @@
 
 import React, { useEffect, useState } from "react";
 import { Check, X, Mailbox, Ghost } from "lucide-react";
-import { Avatar } from "./ui/avatar";
+import * as LucideIcons from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { ThemeAvatarImage } from "./ui/theme-avatar";
 import { Button } from "./ui/button";
 import { getPendingRequests, getOutgoingRequests, acceptChatRequest, denyChatRequest, getCooldownRemaining, type ChatRequest } from "@/lib/services/chat-requests";
+import {
+  getLoomInvites,
+  acceptLoomInvite,
+  denyLoomInvite,
+  getLooms,
+  subscribeToLoomInvites,
+} from "@/lib/services/looms";
+import type { LoomInvite } from "@/app/data";
 import { useAuth } from "@/hooks/useAuth";
 import { ExpandableChatHeader } from "@shadcn-chat/ui";
 import useChatStore from "@/hooks/useChatStore";
@@ -25,6 +34,7 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
   const isBlackWhite = colorTheme.name === "Black & White";
   const [incomingRequests, setIncomingRequests] = useState<ChatRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<ChatRequest[]>([]);
+  const [loomInvites, setLoomInvites] = useState<LoomInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [cooldowns, setCooldowns] = useState<Record<string, number | null>>({});
@@ -32,11 +42,22 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
   const setConversations = useChatStore((state) => state.setConversations);
   const setSelectedConversationId = useChatStore((state) => state.setSelectedConversationId);
   const setPendingRequestCount = useChatStore((state) => state.setPendingRequestCount);
+  const setLooms = useChatStore((state) => state.setLooms);
 
   useEffect(() => {
     if (!user) return;
 
     loadRequests();
+
+    const unsubscribeInvites = subscribeToLoomInvites(user.id, () => {
+      getLoomInvites(user.id).then((invites) => {
+        setLoomInvites(invites);
+        setIncomingRequests((prev) => {
+          setPendingRequestCount(prev.length + invites.length);
+          return prev;
+        });
+      });
+    });
 
     // Update cooldowns every minute
     const cooldownInterval = setInterval(() => {
@@ -45,6 +66,7 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
 
     return () => {
       clearInterval(cooldownInterval);
+      unsubscribeInvites();
     };
   }, [user]);
 
@@ -53,13 +75,15 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
 
     setLoading(true);
     try {
-      const [incoming, outgoing] = await Promise.all([
+      const [incoming, outgoing, invites] = await Promise.all([
         getPendingRequests(user.id),
         getOutgoingRequests(user.id),
+        getLoomInvites(user.id),
       ]);
       setIncomingRequests(incoming);
       setOutgoingRequests(outgoing);
-      setPendingRequestCount(incoming.length);
+      setLoomInvites(invites);
+      setPendingRequestCount(incoming.length + invites.length);
       
       // Update cooldowns for denied requests
       updateCooldowns();
@@ -125,6 +149,40 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
       }
     } catch (error) {
       console.error('Error denying request:', error);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleAcceptLoom = async (invite: LoomInvite) => {
+    if (!user || processing) return;
+
+    setProcessing(invite.id);
+    try {
+      const success = await acceptLoomInvite(invite.loom_id, user.id);
+      if (success) {
+        const refreshed = await getLooms(user.id);
+        setLooms(refreshed);
+        await loadRequests();
+      }
+    } catch (error) {
+      console.error('Error accepting loom invite:', error);
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleDenyLoom = async (invite: LoomInvite) => {
+    if (!user || processing) return;
+
+    setProcessing(invite.id);
+    try {
+      const success = await denyLoomInvite(invite.loom_id, user.id);
+      if (success) {
+        await loadRequests();
+      }
+    } catch (error) {
+      console.error('Error denying loom invite:', error);
     } finally {
       setProcessing(null);
     }
@@ -317,7 +375,7 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
             onClick={() => setActiveView('incoming')}
             className="flex-1"
           >
-            Incoming ({incomingRequests.length})
+            Incoming ({incomingRequests.length + loomInvites.length})
           </Button>
           <Button
             variant={activeView === 'outgoing' ? 'secondary' : 'ghost'}
@@ -332,9 +390,9 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
 
       <div className="flex-1 overflow-y-auto p-4">
         {activeView === 'incoming' ? (
-          /* Incoming Requests */
+          /* Incoming Requests + Loom Invites */
           <div>
-            {incomingRequests.length === 0 ? (
+            {incomingRequests.length === 0 && loomInvites.length === 0 ? (
               <div className="flex items-center justify-center h-full min-h-[400px] text-center text-muted-foreground">
                 <div>
                   <Ghost size={48} className="mx-auto mb-2" />
@@ -342,59 +400,155 @@ export function PendingChatsPage({ onRequestAccepted }: PendingChatsPageProps) {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {incomingRequests.map((request) => {
-                  const displayName = request.requester?.fullname || request.requester?.username || request.requester?.email || "Unknown";
-                  return (
-                    <div
-                      key={request.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-black/10 dark:border-white/10"
+              <div className="space-y-8">
+                {incomingRequests.length > 0 && (
+                  <section aria-labelledby="incoming-chats-heading">
+                    <h2
+                      id="incoming-chats-heading"
+                      className="text-sm font-semibold text-black dark:text-white mb-3"
                     >
-                      <Avatar className="h-10 w-10">
-                        <ThemeAvatarImage
-                          avatarUrl={request.requester?.avatar_url}
-                          alt={displayName}
-                        />
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-black dark:text-white truncate">
-                          {displayName}
-                        </p>
-                        {request.requester?.username && (
-                          <p className="text-xs text-muted-foreground">
-                            @{request.requester.username}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleAccept(request.id)}
-                          disabled={processing === request.id}
-                          className={isBlackWhite 
-                            ? "h-8 w-8 text-foreground hover:text-foreground hover:bg-accent" 
-                            : "h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"}
-                          title="Accept"
-                        >
-                          <Check size={18} />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeny(request.id)}
-                          disabled={processing === request.id}
-                          className={isBlackWhite 
-                            ? "h-8 w-8 text-foreground hover:text-foreground hover:bg-accent" 
-                            : "h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"}
-                          title="Deny"
-                        >
-                          <X size={18} />
-                        </Button>
-                      </div>
+                      Chat requests ({incomingRequests.length})
+                    </h2>
+                    <div className="space-y-2">
+                      {incomingRequests.map((request) => {
+                        const displayName = request.requester?.fullname || request.requester?.username || request.requester?.email || "Unknown";
+                        return (
+                          <div
+                            key={request.id}
+                            className="flex items-center gap-3 p-3 rounded-lg border border-black/10 dark:border-white/10"
+                          >
+                            <Avatar className="h-10 w-10">
+                              <ThemeAvatarImage
+                                avatarUrl={request.requester?.avatar_url}
+                                alt={displayName}
+                              />
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-black dark:text-white truncate">
+                                {displayName}
+                              </p>
+                              {request.requester?.username && (
+                                <p className="text-xs text-muted-foreground">
+                                  @{request.requester.username}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleAccept(request.id)}
+                                disabled={processing === request.id}
+                                className={isBlackWhite
+                                  ? "h-8 w-8 text-foreground hover:text-foreground hover:bg-accent"
+                                  : "h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"}
+                                title="Accept"
+                              >
+                                <Check size={18} />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleDeny(request.id)}
+                                disabled={processing === request.id}
+                                className={isBlackWhite
+                                  ? "h-8 w-8 text-foreground hover:text-foreground hover:bg-accent"
+                                  : "h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"}
+                                title="Deny"
+                              >
+                                <X size={18} />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </section>
+                )}
+
+                {loomInvites.length > 0 && (
+                  <section aria-labelledby="incoming-looms-heading">
+                    <h2
+                      id="incoming-looms-heading"
+                      className="text-sm font-semibold text-black dark:text-white mb-3"
+                    >
+                      Loom invites ({loomInvites.length})
+                    </h2>
+                    <div className="space-y-2">
+                      {loomInvites.map((invite) => {
+                        const inviterName =
+                          invite.inviter?.fullname ||
+                          invite.inviter?.username ||
+                          invite.inviter?.email ||
+                          "Someone";
+                        const iconName = invite.loom.icon_name || "Users";
+                        const Icon = (LucideIcons as any)[iconName] as
+                          | React.ComponentType<{ size?: number; className?: string }>
+                          | undefined;
+                        const LoomIcon = Icon || (LucideIcons as any).Users;
+                        return (
+                          <div
+                            key={invite.id}
+                            className="flex items-center gap-3 p-3 rounded-lg border border-black/10 dark:border-white/10"
+                          >
+                            <Avatar className="h-10 w-10 rounded-xl">
+                              {invite.loom.icon_url ? (
+                                <>
+                                  <AvatarImage
+                                    src={invite.loom.icon_url}
+                                    alt={invite.loom.name}
+                                    className="rounded-xl"
+                                  />
+                                  <AvatarFallback className="rounded-xl bg-black/10 dark:bg-white/10">
+                                    <LoomIcon size={18} />
+                                  </AvatarFallback>
+                                </>
+                              ) : (
+                                <AvatarFallback className="rounded-xl bg-black/10 dark:bg-white/10 text-black/70 dark:text-white/70">
+                                  <LoomIcon size={18} />
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-black dark:text-white truncate">
+                                {invite.loom.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {inviterName} invited you
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleAcceptLoom(invite)}
+                                disabled={processing === invite.id}
+                                className={isBlackWhite
+                                  ? "h-8 w-8 text-foreground hover:text-foreground hover:bg-accent"
+                                  : "h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"}
+                                title="Accept"
+                              >
+                                <Check size={18} />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleDenyLoom(invite)}
+                                disabled={processing === invite.id}
+                                className={isBlackWhite
+                                  ? "h-8 w-8 text-foreground hover:text-foreground hover:bg-accent"
+                                  : "h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"}
+                                title="Deny"
+                              >
+                                <X size={18} />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
               </div>
             )}
           </div>

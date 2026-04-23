@@ -60,6 +60,7 @@ export interface ConversationWithUser {
 // Loom & Thread types
 export type LoomVisibility = 'public' | 'private' | 'invite_only';
 export type LoomMemberRole = 'owner' | 'admin' | 'moderator' | 'member';
+export type LoomMemberStatus = 'invited' | 'active';
 export type ThreadType = 'open' | 'private';
 export type ThreadCategory = 'text' | 'voice';
 
@@ -82,7 +83,10 @@ export interface LoomMember {
   loom_id: string;
   user_id: string;
   role: LoomMemberRole;
+  status: LoomMemberStatus;
   joined_at: string;
+  invited_by: string | null;
+  invited_at: string | null;
   user: {
     id: string;
     username: string | null;
@@ -90,6 +94,22 @@ export interface LoomMember {
     avatar_url: string | null;
     email: string;
   };
+}
+
+export interface LoomInvite {
+  id: string;
+  loom_id: string;
+  user_id: string;
+  invited_by: string | null;
+  invited_at: string | null;
+  loom: Pick<Loom, 'id' | 'name' | 'description' | 'icon_name' | 'icon_url' | 'visibility'>;
+  inviter: {
+    id: string;
+    username: string | null;
+    fullname: string | null;
+    avatar_url: string | null;
+    email: string;
+  } | null;
 }
 
 export interface ThreadFolder {
