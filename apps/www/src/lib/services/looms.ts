@@ -3,7 +3,6 @@ import type { Loom, LoomInvite, LoomMember, LoomMemberRole, LoomVisibility } fro
 
 export type DeleteLoomErrorCode =
   | 'not_owner'
-  | 'new_owner_ack_required'
   | 'rpc_error'
   | 'unknown'
 
@@ -178,19 +177,12 @@ export async function updateLoom(
 
 function mapDeleteLoomRpcMessage(msg: string): DeleteLoomErrorCode {
   if (msg.includes('only the active owner')) return 'not_owner'
-  if (msg.includes('new_owner_ack_required')) return 'new_owner_ack_required'
   return 'rpc_error'
 }
 
-/**
- * Delete a loom (owner only). When more than one active member exists, the
- * database requires `newOwnerAckId` — another active member — as an explicit
- * acknowledgement before the destructive delete.
- */
 export async function deleteLoom(
   loomId: string,
-  deletedBy: string,
-  newOwnerAckId?: string | null
+  deletedBy: string
 ): Promise<{ ok: true } | { ok: false; code: DeleteLoomErrorCode; message?: string }> {
   const role = await getUserLoomRole(loomId, deletedBy)
   if (role !== 'owner') {
@@ -200,7 +192,6 @@ export async function deleteLoom(
 
   const { error } = await supabase.rpc('delete_loom_as_owner', {
     p_loom_id: loomId,
-    p_new_owner_ack: newOwnerAckId ?? null,
   })
 
   if (error) {
@@ -332,6 +323,31 @@ export async function removeLoomMember(
   }
 
   return true
+}
+
+export async function leaveLoom(
+  loomId: string,
+  userId: string
+): Promise<{ ok: true } | { ok: false; code: 'owner_must_transfer' | 'failed'; message?: string }> {
+  const role = await getUserLoomRole(loomId, userId)
+  if (role === 'owner') {
+    return {
+      ok: false,
+      code: 'owner_must_transfer',
+      message: 'Transfer ownership before leaving this loom.',
+    }
+  }
+
+  const ok = await removeLoomMember(loomId, userId, userId)
+  if (!ok) {
+    return {
+      ok: false,
+      code: 'failed',
+      message: 'Could not leave this loom. Please try again.',
+    }
+  }
+
+  return { ok: true }
 }
 
 export async function updateLoomMemberRole(

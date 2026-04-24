@@ -50,11 +50,9 @@ $$;
 REVOKE ALL ON FUNCTION public.transfer_loom_ownership(uuid, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.transfer_loom_ownership(uuid, uuid) TO authenticated;
 
--- Delete a loom as the current owner. When more than one active member exists,
--- the caller must pass p_new_owner_ack (an active member other than self) so
--- the UI can require choosing someone before the destructive delete.
+-- Delete a loom as the current owner.
 
-CREATE OR REPLACE FUNCTION public.delete_loom_as_owner(p_loom_id uuid, p_new_owner_ack uuid DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.delete_loom_as_owner(p_loom_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -62,7 +60,6 @@ SET search_path = public
 AS $$
 DECLARE
   uid uuid := auth.uid();
-  n int;
 BEGIN
   IF uid IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
@@ -75,25 +72,9 @@ BEGIN
     RAISE EXCEPTION 'only the active owner can delete this loom';
   END IF;
 
-  SELECT COUNT(*)::int INTO n
-  FROM public.loom_members
-  WHERE loom_id = p_loom_id AND status = 'active';
-
-  IF n > 1 THEN
-    IF p_new_owner_ack IS NULL OR p_new_owner_ack = uid THEN
-      RAISE EXCEPTION 'new_owner_ack_required';
-    END IF;
-    IF NOT EXISTS (
-      SELECT 1 FROM public.loom_members
-      WHERE loom_id = p_loom_id AND user_id = p_new_owner_ack AND status = 'active'
-    ) THEN
-      RAISE EXCEPTION 'invalid_new_owner_ack';
-    END IF;
-  END IF;
-
   DELETE FROM public.looms WHERE id = p_loom_id;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.delete_loom_as_owner(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.delete_loom_as_owner(uuid, uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.delete_loom_as_owner(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_loom_as_owner(uuid) TO authenticated;

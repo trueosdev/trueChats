@@ -58,6 +58,7 @@ import {
   getUserLoomRole,
   transferLoomOwnership,
   deleteLoom,
+  leaveLoom,
 } from '@/lib/services/looms'
 import {
   createThread,
@@ -187,7 +188,6 @@ export function ThreadList({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [transferCandidates, setTransferCandidates] = useState<LoomMember[]>([])
   const [transferPick, setTransferPick] = useState('')
-  const [deleteAckPick, setDeleteAckPick] = useState('')
   const [deleteNameConfirm, setDeleteNameConfirm] = useState('')
   const [dangerBusy, setDangerBusy] = useState(false)
   const [dangerError, setDangerError] = useState<string | null>(null)
@@ -567,55 +567,41 @@ export function ThreadList({
   const openDeleteLoom = async () => {
     setDangerError(null)
     setDeleteNameConfirm('')
-    setDangerBusy(true)
-    try {
-      const needsAck = (loom.member_count ?? 0) > 1
-      if (needsAck && user) {
-        const candidates = await loadOtherActiveMembers()
-        setTransferCandidates(candidates)
-        setDeleteAckPick(candidates[0] ? String(candidates[0].user_id) : '')
-      } else {
-        setTransferCandidates([])
-        setDeleteAckPick('')
-      }
-      setDeleteOpen(true)
-    } finally {
-      setDangerBusy(false)
-    }
+    setDeleteOpen(true)
   }
 
   const confirmDeleteLoom = async () => {
     if (!user) return
-    const needsAck = (loom.member_count ?? 0) > 1
     if (deleteNameConfirm.trim() !== (loom.name || '').trim()) {
       setDangerError('Type the loom name exactly to confirm.')
       return
     }
-    if (needsAck && !deleteAckPick) {
-      setDangerError(
-        'Choose a member — required when more than one person is in this loom.',
-      )
-      return
-    }
     setDangerBusy(true)
     setDangerError(null)
-    const result = await deleteLoom(
-      loom.id,
-      String(user.id),
-      needsAck ? deleteAckPick : null,
-    )
+    const result = await deleteLoom(loom.id, String(user.id))
     setDangerBusy(false)
     if (!result.ok) {
-      if (result.code === 'new_owner_ack_required') {
-        setDangerError(
-          'Choose a member — required when more than one person is in this loom.',
-        )
-      } else {
-        setDangerError(result.message || 'Could not delete this loom.')
-      }
+      setDangerError(result.message || 'Could not delete this loom.')
       return
     }
     setDeleteOpen(false)
+    await onLoomMembershipChanged?.()
+  }
+
+  const handleLeaveLoom = async () => {
+    if (!user) return
+    setDangerBusy(true)
+    setDangerError(null)
+    const result = await leaveLoom(loom.id, String(user.id))
+    setDangerBusy(false)
+    if (!result.ok) {
+      setDangerError(
+        result.code === 'owner_must_transfer'
+          ? 'You are the owner. Transfer ownership before leaving this loom.'
+          : result.message || 'Could not leave this loom.',
+      )
+      return
+    }
     await onLoomMembershipChanged?.()
   }
 
@@ -1209,6 +1195,28 @@ export function ThreadList({
                 </div>
               </div>
             )}
+            <div className="space-y-2 border-t border-border pt-5">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Membership
+              </p>
+              <button
+                type="button"
+                disabled={dangerBusy}
+                onClick={() => void handleLeaveLoom()}
+                className={cn(
+                  buttonVariants({ variant: 'outline' }),
+                  'h-9 w-full justify-center gap-2 border-red-200 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40',
+                )}
+              >
+                <ChevronRight size={14} />
+                Leave loom
+              </button>
+              {dangerError && (
+                <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-300">
+                  {dangerError}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1299,33 +1307,6 @@ export function ThreadList({
           <p className="mt-1 text-sm text-muted-foreground">
             This permanently removes the loom, all threads, and messages for every member.
           </p>
-          {(loom.member_count ?? 0) > 1 && (
-            <div className="mt-4 space-y-2">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Choose a member (required)
-              </label>
-              <p className="text-xs text-muted-foreground">
-                With more than one person in this loom, pick an active member to acknowledge before deletion.
-              </p>
-              {transferCandidates.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No other active members found. Try refreshing, or remove invited people first.
-                </p>
-              ) : (
-                <select
-                  value={deleteAckPick}
-                  onChange={(e) => setDeleteAckPick(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-                >
-                  {transferCandidates.map((m) => (
-                    <option key={m.user_id} value={String(m.user_id)}>
-                      {m.user.fullname || m.user.username || m.user.email}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
           <div className="mt-4 space-y-2">
             <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Type the loom name to confirm
@@ -1354,12 +1335,7 @@ export function ThreadList({
             </button>
             <button
               type="button"
-              disabled={
-                dangerBusy ||
-                deleteNameConfirm.trim() !== (loom.name || '').trim() ||
-                ((loom.member_count ?? 0) > 1 &&
-                  (!deleteAckPick || transferCandidates.length === 0))
-              }
+              disabled={dangerBusy || deleteNameConfirm.trim() !== (loom.name || '').trim()}
               onClick={() => void confirmDeleteLoom()}
               className={cn(
                 buttonVariants({ variant: 'destructive' }),
