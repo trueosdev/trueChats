@@ -424,6 +424,19 @@ export function ChatLayout({
     }
   };
 
+  const handleLoomMembershipChanged = async () => {
+    if (!user) return;
+    const list = await getLooms(user.id);
+    setLooms(list);
+    const still = list.find((l) => l.id === selectedLoomId);
+    if (!still) {
+      setSelectedLoomId(null);
+      setSelectedThreadId(null);
+      setThreads([]);
+      setThreadFolders([]);
+    }
+  };
+
   const handleThreadCreated = (thread: Thread) => {
     addThread(thread);
     setSelectedThreadId(thread.id);
@@ -484,6 +497,7 @@ export function ChatLayout({
         onShowMembers={() => setShowLoomMembers(true)}
         loading={loomThreadsLoading}
         isCollapsed={collapsed}
+        onLoomMembershipChanged={handleLoomMembershipChanged}
       />
     ) : undefined;
 

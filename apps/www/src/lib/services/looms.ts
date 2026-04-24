@@ -1,6 +1,12 @@
 import { supabase } from '../supabase/client'
 import type { Loom, LoomInvite, LoomMember, LoomMemberRole, LoomVisibility } from '@/app/data'
 
+export type DeleteLoomErrorCode =
+  | 'not_owner'
+  | 'new_owner_ack_required'
+  | 'rpc_error'
+  | 'unknown'
+
 export interface CreateLoomParams {
   name: string
   description?: string
@@ -170,24 +176,61 @@ export async function updateLoom(
   return true
 }
 
-export async function deleteLoom(loomId: string, deletedBy: string): Promise<boolean> {
+function mapDeleteLoomRpcMessage(msg: string): DeleteLoomErrorCode {
+  if (msg.includes('only the active owner')) return 'not_owner'
+  if (msg.includes('new_owner_ack_required')) return 'new_owner_ack_required'
+  return 'rpc_error'
+}
+
+/**
+ * Delete a loom (owner only). When more than one active member exists, the
+ * database requires `newOwnerAckId` — another active member — as an explicit
+ * acknowledgement before the destructive delete.
+ */
+export async function deleteLoom(
+  loomId: string,
+  deletedBy: string,
+  newOwnerAckId?: string | null
+): Promise<{ ok: true } | { ok: false; code: DeleteLoomErrorCode; message?: string }> {
   const role = await getUserLoomRole(loomId, deletedBy)
   if (role !== 'owner') {
     console.error('Only the owner can delete a Loom')
-    return false
+    return { ok: false, code: 'not_owner' }
   }
 
-  const { error } = await supabase
-    .from('looms')
-    .delete()
-    .eq('id', loomId)
+  const { error } = await supabase.rpc('delete_loom_as_owner', {
+    p_loom_id: loomId,
+    p_new_owner_ack: newOwnerAckId ?? null,
+  })
 
   if (error) {
     console.error('Error deleting loom:', error)
-    return false
+    const code = mapDeleteLoomRpcMessage(error.message || '')
+    return {
+      ok: false,
+      code,
+      message: error.message || undefined,
+    }
   }
 
-  return true
+  return { ok: true }
+}
+
+export async function transferLoomOwnership(
+  loomId: string,
+  newOwnerId: string
+): Promise<{ ok: true } | { ok: false; message?: string }> {
+  const { error } = await supabase.rpc('transfer_loom_ownership', {
+    p_loom_id: loomId,
+    p_new_owner_id: newOwnerId,
+  })
+
+  if (error) {
+    console.error('Error transferring loom ownership:', error)
+    return { ok: false, message: error.message || 'Transfer failed' }
+  }
+
+  return { ok: true }
 }
 
 // --- Member management ---

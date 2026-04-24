@@ -21,6 +21,7 @@ import {
   Plus,
   Folder,
   Trash2,
+  ArrowRightLeft,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -50,7 +51,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { UnreadBadge } from '../ui/unread-badge'
 import { useAuth } from '@/hooks/useAuth'
 import useChatStore from '@/hooks/useChatStore'
-import { updateLoom, uploadLoomIcon } from '@/lib/services/looms'
+import {
+  updateLoom,
+  uploadLoomIcon,
+  getLoomMembers,
+  getUserLoomRole,
+  transferLoomOwnership,
+  deleteLoom,
+} from '@/lib/services/looms'
 import {
   createThread,
   createThreadFolder,
@@ -60,7 +68,7 @@ import {
   updateThread,
   updateThreadFolder,
 } from '@/lib/services/threads'
-import type { Loom, Thread, ThreadCategory, ThreadFolder } from '@/app/data'
+import type { Loom, LoomMember, LoomMemberRole, Thread, ThreadCategory, ThreadFolder } from '@/app/data'
 import { FolderNameCard } from '@/components/loom/folder-name-card'
 import {
   THREAD_FOLDER_NAME_MAX_CHARS,
@@ -139,6 +147,8 @@ interface ThreadListProps {
   onShowMembers: () => void
   loading?: boolean
   isCollapsed?: boolean
+  /** Called after transfer or delete so the parent can refresh looms / selection. */
+  onLoomMembershipChanged?: () => void | Promise<void>
 }
 
 const UNCATEGORIZED_FOLDER_KEY = '__uncategorized__'
@@ -158,6 +168,7 @@ export function ThreadList({
   onShowMembers,
   loading = false,
   isCollapsed = false,
+  onLoomMembershipChanged,
 }: ThreadListProps) {
   const { user, session } = useAuth()
   const addThreadFolder = useChatStore((s) => s.addThreadFolder)
@@ -171,6 +182,15 @@ export function ThreadList({
   const [saving, setSaving] = useState(false)
   const [settingsError, setSettingsError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [userLoomRole, setUserLoomRole] = useState<LoomMemberRole | null>(null)
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [transferCandidates, setTransferCandidates] = useState<LoomMember[]>([])
+  const [transferPick, setTransferPick] = useState('')
+  const [deleteAckPick, setDeleteAckPick] = useState('')
+  const [deleteNameConfirm, setDeleteNameConfirm] = useState('')
+  const [dangerBusy, setDangerBusy] = useState(false)
+  const [dangerError, setDangerError] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [folderOpenMap, setFolderOpenMap] = useState<Record<string, boolean>>({})
   const [newFolderPopoverOpen, setNewFolderPopoverOpen] = useState(false)
@@ -487,6 +507,116 @@ export function ThreadList({
     setSaving(false)
     setSaveSuccess(true)
     setTimeout(() => setSaveSuccess(false), 1500)
+  }
+
+  useEffect(() => {
+    if (!user) {
+      setUserLoomRole(null)
+      return
+    }
+    let cancelled = false
+    getUserLoomRole(loom.id, String(user.id)).then((role) => {
+      if (!cancelled) setUserLoomRole(role)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [loom.id, loom.created_by, user])
+
+  const loadOtherActiveMembers = async (): Promise<LoomMember[]> => {
+    if (!user) return []
+    const members = await getLoomMembers(loom.id)
+    const uid = String(user.id)
+    return members.filter((m) => m.status === 'active' && String(m.user_id) !== uid)
+  }
+
+  const openTransferOwnership = async () => {
+    if (!user) return
+    setDangerError(null)
+    setDangerBusy(true)
+    try {
+      const candidates = await loadOtherActiveMembers()
+      setTransferCandidates(candidates)
+      setTransferPick(candidates[0] ? String(candidates[0].user_id) : '')
+      setTransferOpen(true)
+    } finally {
+      setDangerBusy(false)
+    }
+  }
+
+  const confirmTransferOwnership = async () => {
+    if (!user) return
+    if (!transferPick) {
+      setDangerError('Choose a member to transfer ownership to.')
+      return
+    }
+    setDangerBusy(true)
+    setDangerError(null)
+    const res = await transferLoomOwnership(loom.id, transferPick)
+    setDangerBusy(false)
+    if (!res.ok) {
+      setDangerError(res.message || 'Transfer failed.')
+      return
+    }
+    setTransferOpen(false)
+    await onLoomMembershipChanged?.()
+    const role = await getUserLoomRole(loom.id, String(user.id))
+    setUserLoomRole(role)
+  }
+
+  const openDeleteLoom = async () => {
+    setDangerError(null)
+    setDeleteNameConfirm('')
+    setDangerBusy(true)
+    try {
+      const needsAck = (loom.member_count ?? 0) > 1
+      if (needsAck && user) {
+        const candidates = await loadOtherActiveMembers()
+        setTransferCandidates(candidates)
+        setDeleteAckPick(candidates[0] ? String(candidates[0].user_id) : '')
+      } else {
+        setTransferCandidates([])
+        setDeleteAckPick('')
+      }
+      setDeleteOpen(true)
+    } finally {
+      setDangerBusy(false)
+    }
+  }
+
+  const confirmDeleteLoom = async () => {
+    if (!user) return
+    const needsAck = (loom.member_count ?? 0) > 1
+    if (deleteNameConfirm.trim() !== (loom.name || '').trim()) {
+      setDangerError('Type the loom name exactly to confirm.')
+      return
+    }
+    if (needsAck && !deleteAckPick) {
+      setDangerError(
+        'Choose a member — required when more than one person is in this loom.',
+      )
+      return
+    }
+    setDangerBusy(true)
+    setDangerError(null)
+    const result = await deleteLoom(
+      loom.id,
+      String(user.id),
+      needsAck ? deleteAckPick : null,
+    )
+    setDangerBusy(false)
+    if (!result.ok) {
+      if (result.code === 'new_owner_ack_required') {
+        setDangerError(
+          'Choose a member — required when more than one person is in this loom.',
+        )
+      } else {
+        setDangerError(result.message || 'Could not delete this loom.')
+      }
+      return
+    }
+    setDeleteOpen(false)
+    await onLoomMembershipChanged?.()
   }
 
   if (isCollapsed) {
@@ -1042,10 +1172,206 @@ export function ThreadList({
                 'Save Changes'
               )}
             </button>
+
+            {userLoomRole === 'owner' && (
+              <div className="space-y-3 border-t border-border pt-5">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Owner
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Transfer ownership to another active member, or delete this loom for everyone.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    disabled={dangerBusy}
+                    onClick={() => void openTransferOwnership()}
+                    className={cn(
+                      buttonVariants({ variant: 'outline' }),
+                      'h-9 w-full justify-center gap-2 text-sm',
+                    )}
+                  >
+                    <ArrowRightLeft size={14} />
+                    Transfer ownership
+                  </button>
+                  <button
+                    type="button"
+                    disabled={dangerBusy}
+                    onClick={() => void openDeleteLoom()}
+                    className={cn(
+                      buttonVariants({ variant: 'outline' }),
+                      'h-9 w-full justify-center gap-2 border-red-200 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40',
+                    )}
+                  >
+                    <Trash2 size={14} />
+                    Delete loom
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
+
+    {transferOpen ? (
+      <div
+        className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 p-4 dark:bg-white/10"
+        role="presentation"
+        onClick={() => {
+          if (!dangerBusy) setTransferOpen(false)
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal
+          className="w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-lg font-semibold text-foreground">Transfer ownership</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The new owner can manage members, settings, and delete this loom. You will become an admin.
+          </p>
+          {dangerError && (
+            <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-300">
+              {dangerError}
+            </p>
+          )}
+          {transferCandidates.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Add another active member to this loom before you can transfer ownership.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                New owner
+              </label>
+              <select
+                value={transferPick}
+                onChange={(e) => setTransferPick(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              >
+                {transferCandidates.map((m) => (
+                  <option key={m.user_id} value={String(m.user_id)}>
+                    {m.user.fullname || m.user.username || m.user.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={dangerBusy}
+              onClick={() => !dangerBusy && setTransferOpen(false)}
+              className={cn(buttonVariants({ variant: 'ghost' }), 'h-9')}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={dangerBusy || transferCandidates.length === 0}
+              onClick={() => void confirmTransferOwnership()}
+              className={cn(buttonVariants({ variant: 'default' }), 'h-9')}
+            >
+              {dangerBusy ? 'Working…' : 'Transfer'}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    {deleteOpen ? (
+      <div
+        className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 p-4 dark:bg-white/10"
+        role="presentation"
+        onClick={() => {
+          if (!dangerBusy) setDeleteOpen(false)
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal
+          className="w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-lg font-semibold text-foreground">Delete loom</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            This permanently removes the loom, all threads, and messages for every member.
+          </p>
+          {(loom.member_count ?? 0) > 1 && (
+            <div className="mt-4 space-y-2">
+              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Choose a member (required)
+              </label>
+              <p className="text-xs text-muted-foreground">
+                With more than one person in this loom, pick an active member to acknowledge before deletion.
+              </p>
+              {transferCandidates.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No other active members found. Try refreshing, or remove invited people first.
+                </p>
+              ) : (
+                <select
+                  value={deleteAckPick}
+                  onChange={(e) => setDeleteAckPick(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                >
+                  {transferCandidates.map((m) => (
+                    <option key={m.user_id} value={String(m.user_id)}>
+                      {m.user.fullname || m.user.username || m.user.email}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+          <div className="mt-4 space-y-2">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Type the loom name to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteNameConfirm}
+              onChange={(e) => setDeleteNameConfirm(e.target.value)}
+              placeholder={loom.name || 'Loom name'}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          {dangerError && (
+            <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-300">
+              {dangerError}
+            </p>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={dangerBusy}
+              onClick={() => !dangerBusy && setDeleteOpen(false)}
+              className={cn(buttonVariants({ variant: 'ghost' }), 'h-9')}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={
+                dangerBusy ||
+                deleteNameConfirm.trim() !== (loom.name || '').trim() ||
+                ((loom.member_count ?? 0) > 1 &&
+                  (!deleteAckPick || transferCandidates.length === 0))
+              }
+              onClick={() => void confirmDeleteLoom()}
+              className={cn(
+                buttonVariants({ variant: 'destructive' }),
+                'h-9',
+              )}
+            >
+              {dangerBusy ? 'Deleting…' : 'Delete loom'}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
 
     {renameTarget ? (
       <div
