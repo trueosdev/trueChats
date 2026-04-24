@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
-import { getLoomMembers, addLoomMember, removeLoomMember, updateLoomMemberRole } from '@/lib/services/looms'
+import { getLoomMembers, addLoomMember, removeLoomMember, updateLoomMemberRole, transferLoomOwnership } from '@/lib/services/looms'
 import { getUsers } from '@/lib/services/users'
 import { useAuth } from '@/hooks/useAuth'
 import type { LoomMember, LoomMemberRole } from '@/app/data'
@@ -51,6 +51,7 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
 
   const currentMember = members.find(m => String(m.user_id) === String(user?.id))
   const canManage = (currentMember?.role === 'owner' || currentMember?.role === 'admin') && currentMember?.status === 'active'
+  const isOwner = currentMember?.role === 'owner' && currentMember?.status === 'active'
   const activeMembers = members.filter(m => m.status === 'active')
   const invitedMembers = members.filter(m => m.status === 'invited')
 
@@ -108,6 +109,19 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
       await loadMembers()
     } else {
       setActionError(`Could not update role to ${ROLE_LABELS[newRole]}. Please try again.`)
+    }
+    setActioningMemberId(null)
+  }
+
+  const handleTransferOwnership = async (newOwnerId: string) => {
+    if (!user) return
+    setActionError(null)
+    setActioningMemberId(newOwnerId)
+    const result = await transferLoomOwnership(loomId, newOwnerId)
+    if (result.ok) {
+      await loadMembers()
+    } else {
+      setActionError(result.message || 'Could not transfer ownership. Please try again.')
     }
     setActioningMemberId(null)
   }
@@ -271,6 +285,16 @@ export function LoomMembersDialog({ open, onOpenChange, loomId, loomName }: Loom
                                 <DropdownMenuItem disabled={isActingOnMember} onSelect={() => handleRoleChange(member.user_id, 'moderator')}>
                                   <Shield size={14} className="mr-2" />
                                   Make Moderator
+                                </DropdownMenuItem>
+                              )}
+                              {isOwner && member.status === 'active' && (
+                                <DropdownMenuItem
+                                  disabled={isActingOnMember}
+                                  onSelect={() => handleTransferOwnership(member.user_id)}
+                                  className="text-red-600 dark:text-red-400"
+                                >
+                                  <Crown size={14} className="mr-2" />
+                                  Transfer Ownership
                                 </DropdownMenuItem>
                               )}
                               {member.status === 'active' && member.role !== 'member' && (
