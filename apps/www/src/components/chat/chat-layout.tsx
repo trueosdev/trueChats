@@ -261,6 +261,35 @@ export function ChatLayout({
         setThreads(threadData);
         setThreadFolders(folderData);
         setLoomLoading(false);
+
+        // When a loom is opened (or switched into) and there's no valid
+        // thread selection for it yet, auto-open the first text thread in
+        // the first folder. Mirrors the optimistic mark-as-read that
+        // onThreadSelect performs so the rail dot clears immediately.
+        const currentSelectedThreadId =
+          useChatStore.getState().selectedThreadId;
+        const selectionStillValid = currentSelectedThreadId
+          ? threadData.some((t) => t.id === currentSelectedThreadId)
+          : false;
+        if (selectionStillValid) return;
+
+        const firstFolder = [...folderData].sort(
+          (a, b) =>
+            a.position - b.position ||
+            a.created_at.localeCompare(b.created_at),
+        )[0];
+        if (!firstFolder) return;
+
+        const firstTextThread = threadData.find(
+          (t) =>
+            t.folder_id === firstFolder.id &&
+            t.category === "text" &&
+            !t.is_pinned,
+        );
+        if (!firstTextThread) return;
+
+        setSelectedThreadId(firstTextThread.id);
+        markThreadRead(firstTextThread.id);
       },
     );
 
@@ -304,6 +333,8 @@ export function ChatLayout({
     setThreads,
     setThreadFolders,
     setLoomLoading,
+    setSelectedThreadId,
+    markThreadRead,
   ]);
 
   // Subscribe to messages for unread count updates
