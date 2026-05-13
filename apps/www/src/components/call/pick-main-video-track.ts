@@ -3,8 +3,12 @@ import type { TrackReferenceOrPlaceholder } from "@livekit/components-core";
 import { Track } from "livekit-client";
 
 /**
- * Spotlight track for thread / DM video: prefer remote screen and camera so the
- * main stage is not stuck on the local preview when others are publishing.
+ * Spotlight track for thread / DM video.
+ *
+ * Any live screen share wins over camera tracks so the presenter (local or
+ * remote) sees the shared content as the main stage, not someone else's camera.
+ * Among cameras, prefer remote before local so the solo preview is not stuck
+ * on self when others are on video.
  */
 export function pickMainVideoTrackPreferRemote(
   tracks: TrackReferenceOrPlaceholder[],
@@ -28,8 +32,8 @@ export function pickMainVideoTrackPreferRemote(
     );
   return (
     liveScreen(false) ??
-    liveCam(false) ??
     liveScreen(true) ??
+    liveCam(false) ??
     liveCam(true) ??
     null
   );

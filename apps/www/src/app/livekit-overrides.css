@@ -288,6 +288,16 @@
   object-fit: cover;
 }
 
+/* Loom gallery: large spotlight row (active speaker or pinned when 3+ people) */
+.thread-call-gallery-featured .lk-participant-tile {
+  min-height: 0;
+}
+
+.thread-call-gallery-featured .lk-participant-tile video,
+.thread-call-gallery-featured .lk-participant-tile .lk-participant-media-video {
+  object-fit: cover;
+}
+
 /* Active speaker highlight ("blue box"): keep a subtle radius to match tile chrome. */
 [data-lk-theme] .lk-participant-tile.lk-speaking {
   border-radius: 0.6rem !important;
