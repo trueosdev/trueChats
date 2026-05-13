@@ -5,7 +5,8 @@ import { Lock, Video, PhoneOff, Phone, PhoneCall, LineSquiggle } from 'lucide-re
 import { useTracks } from '@livekit/components-react'
 import { MixerParticipantTile } from '@/components/call/call-audio-mixer'
 import { ConferenceParticipantStrip } from '@/components/call/conference-participant-strip'
-import { isTrackReference } from '@livekit/components-core'
+import { getTrackReferenceId, isTrackReference } from '@livekit/components-core'
+import { pickMainVideoTrackPreferRemote } from '@/components/call/pick-main-video-track'
 import '@livekit/components-styles'
 import '@/app/livekit-overrides.css'
 import { Track } from 'livekit-client'
@@ -170,6 +171,21 @@ function CallControls({ onLeave }: { onLeave: () => void }) {
   )
 }
 
+function sortCameraTracksForGallery(
+  tracks: Parameters<typeof pickMainVideoTrackPreferRemote>[0],
+) {
+  const cams = tracks.filter(
+    (t) => isTrackReference(t) && t.source === Track.Source.Camera,
+  )
+  const remotes = cams
+    .filter((t) => !t.participant.isLocal)
+    .sort((a, b) =>
+      a.participant.identity.localeCompare(b.participant.identity),
+    )
+  const locals = cams.filter((t) => t.participant.isLocal)
+  return [...remotes, ...locals]
+}
+
 function CallGrid() {
   const tracks = useTracks(
     [
@@ -179,46 +195,74 @@ function CallGrid() {
     { onlySubscribed: false },
   )
 
-  const mainTrack = useMemo(() => {
-    const liveScreen = tracks
-      .filter(isTrackReference)
-      .find(
+  const hasLiveScreenShare = useMemo(
+    () =>
+      tracks.some(
         (t) =>
-          t.source === Track.Source.ScreenShare && !t.publication.isMuted,
-      )
-    if (liveScreen) return liveScreen
-
-    const liveCamera = tracks
-      .filter(isTrackReference)
-      .find(
-        (t) =>
-          t.source === Track.Source.Camera &&
-          t.publication.isSubscribed &&
-          !!t.publication.track &&
+          isTrackReference(t) &&
+          t.source === Track.Source.ScreenShare &&
           !t.publication.isMuted,
-      )
-    return liveCamera ?? null
-  }, [tracks])
+      ),
+    [tracks],
+  )
+
+  const spotlightTrack = useMemo(
+    () =>
+      hasLiveScreenShare ? pickMainVideoTrackPreferRemote(tracks) : null,
+    [tracks, hasLiveScreenShare],
+  )
+
+  const galleryCameraTracks = useMemo(
+    () => sortCameraTracksForGallery(tracks),
+    [tracks],
+  )
+
+  const showAvatarStrip =
+    hasLiveScreenShare || galleryCameraTracks.length === 0
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      {mainTrack ? (
+      {hasLiveScreenShare && spotlightTrack ? (
         <div className="thread-call-main-stage relative min-h-0 flex-1 overflow-hidden bg-background">
           <MixerParticipantTile
-            trackRef={mainTrack}
+            trackRef={spotlightTrack}
             className="!h-full !min-h-0 !w-full !min-w-0"
             mixerMenuContentClassName="z-[600]"
           />
           <LocalCameraScreenSharePip
-            mainTrack={mainTrack}
+            mainTrack={spotlightTrack}
             mixerMenuContentClassName="z-[600]"
           />
         </div>
+      ) : (
+        <div className="relative min-h-0 flex-1 overflow-auto bg-background">
+          <div className="grid h-full min-h-0 gap-2 p-2 [grid-auto-rows:minmax(9rem,1fr)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+            {galleryCameraTracks.map((trackRef) => (
+              <div
+                key={getTrackReferenceId(trackRef)}
+                className="thread-call-gallery-tile relative min-h-0 overflow-hidden rounded-lg bg-muted/15"
+              >
+                <MixerParticipantTile
+                  trackRef={trackRef}
+                  className="!h-full !min-h-0 !w-full !min-w-0"
+                  mixerMenuContentClassName="z-[600]"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {showAvatarStrip ? (
+        <ConferenceParticipantStrip
+          centered={
+            !hasLiveScreenShare && galleryCameraTracks.length === 0
+          }
+          mixerMenuContentClassName="z-[600]"
+          className={
+            hasLiveScreenShare ? 'border-white/15 bg-background/70' : undefined
+          }
+        />
       ) : null}
-      <ConferenceParticipantStrip
-        centered={!mainTrack}
-        mixerMenuContentClassName="z-[600]"
-      />
     </div>
   )
 }

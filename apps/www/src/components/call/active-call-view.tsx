@@ -9,8 +9,7 @@ import {
   useRemoteParticipants,
   useLocalParticipant,
 } from "@livekit/components-react";
-import { isTrackReference } from "@livekit/components-core";
-import type { TrackReferenceOrPlaceholder } from "@livekit/components-core";
+import { pickMainVideoTrackPreferRemote } from "@/components/call/pick-main-video-track";
 import {
   CallAudioMixerProvider,
   MixerParticipantTile,
@@ -32,29 +31,6 @@ import { DmMinimizedCallPillInner } from "./minimized-call-pill";
 import { LocalCameraScreenSharePip } from "./local-camera-screen-share-pip";
 import { useAuth } from "@/hooks/useAuth";
 import { getAvatarUrl } from "@/lib/utils";
-
-function pickDmMainVideoTrack(
-  tracks: TrackReferenceOrPlaceholder[],
-): TrackReferenceOrPlaceholder | null {
-  const refs = tracks.filter(isTrackReference);
-  const liveScreen = (isLocal: boolean) =>
-    refs.find(
-      (t) =>
-        t.source === Track.Source.ScreenShare &&
-        t.participant.isLocal === isLocal &&
-        !t.publication.isMuted,
-    );
-  const liveCam = (isLocal: boolean) =>
-    refs.find(
-      (t) =>
-        t.source === Track.Source.Camera &&
-        t.participant.isLocal === isLocal &&
-        t.publication.isSubscribed &&
-        !!t.publication.track &&
-        !t.publication.isMuted,
-    );
-  return liveScreen(false) ?? liveCam(false) ?? liveScreen(true) ?? liveCam(true) ?? null;
-}
 
 function CallTimer() {
   const [elapsed, setElapsed] = useState(0);
@@ -165,7 +141,10 @@ function VideoView() {
   );
   const { hangUp, toggleMinimize } = useCall();
 
-  const mainTrack = useMemo(() => pickDmMainVideoTrack(tracks), [tracks]);
+  const mainTrack = useMemo(
+    () => pickMainVideoTrackPreferRemote(tracks),
+    [tracks],
+  );
   const hasMainVideo = mainTrack != null;
 
   return (
