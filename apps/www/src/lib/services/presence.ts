@@ -1,6 +1,11 @@
 import { supabase } from '../supabase/client'
 import { RealtimeChannel } from '@supabase/supabase-js'
 
+const logPresenceDebug =
+  typeof process !== 'undefined' &&
+  process.env.NODE_ENV === 'development' &&
+  process.env.NEXT_PUBLIC_DEBUG_PRESENCE === '1'
+
 export interface UserPresence {
   user_id: string
   online_at: string
@@ -32,18 +37,31 @@ export function subscribeToPresence(
   channel
     .on('presence', { event: 'sync' }, () => {
       const presenceState = channel.presenceState() as Record<string, UserPresence[]>
-      console.log('👥 Presence updated:', presenceState)
-      console.log('👥 Online users count:', Object.keys(presenceState).length)
+      if (logPresenceDebug) {
+        // eslint-disable-next-line no-console
+        console.log('👥 Presence updated:', presenceState)
+        // eslint-disable-next-line no-console
+        console.log('👥 Online users count:', Object.keys(presenceState).length)
+      }
       callback(presenceState)
     })
     .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-      console.log('✅ User joined:', key, newPresences)
+      if (logPresenceDebug) {
+        // eslint-disable-next-line no-console
+        console.log('✅ User joined:', key, newPresences)
+      }
     })
     .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-      console.log('❌ User left:', key, leftPresences)
+      if (logPresenceDebug) {
+        // eslint-disable-next-line no-console
+        console.log('❌ User left:', key, leftPresences)
+      }
     })
     .subscribe(async (status) => {
-      console.log('🟢 Presence channel status:', status)
+      if (logPresenceDebug) {
+        // eslint-disable-next-line no-console
+        console.log('🟢 Presence channel status:', status)
+      }
       if (status === 'SUBSCRIBED') {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
@@ -54,7 +72,10 @@ export function subscribeToPresence(
             fullname: user.user_metadata?.fullname,
             avatar_url: user.user_metadata?.avatar_url,
           }
-          console.log('📡 Broadcasting presence:', presenceData)
+          if (logPresenceDebug) {
+            // eslint-disable-next-line no-console
+            console.log('📡 Broadcasting presence:', presenceData)
+          }
           await channel.track(presenceData)
         }
       }

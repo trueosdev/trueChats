@@ -8,6 +8,14 @@ import {
 } from "@/app/data";
 import { create } from "zustand";
 
+function sameStringSet(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const id of b) {
+    if (!a.has(id)) return false;
+  }
+  return true;
+}
+
 type ViewMode = 'dms' | 'looms';
 
 interface State {
@@ -303,7 +311,11 @@ const useChatStore = create<State & Actions>()((set) => ({
       loomUnreadCounts: nextLoomCounts,
     };
   }),
-  setOnlineUserIds: (ids) => set({ onlineUserIds: ids }),
+  setOnlineUserIds: (ids) =>
+    set((state) => {
+      if (sameStringSet(state.onlineUserIds, ids)) return state;
+      return { onlineUserIds: ids };
+    }),
 }));
 
 export default useChatStore;

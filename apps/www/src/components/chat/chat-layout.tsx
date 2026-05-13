@@ -110,10 +110,16 @@ export function ChatLayout({
   // Single presence subscription for the whole app. Supabase only allows one
   // channel per name per client, so Sidebar / ChatTopbar / etc. must read from
   // the store instead of each opening their own "online-users" channel.
+  //
+  // Depend on `user.id` only: the Supabase `User` object reference can change on
+  // token refresh (`TOKEN_REFRESHED`) even though the id is stable. Re-running
+  // this effect used to tear the channel down and spam CLOSED/SUBSCRIBED plus
+  // join/leave presence events — heavy for the main thread during calls.
+  const userId = user?.id;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
-    const channel = subscribeToPresence(user.id, (presences) => {
+    const channel = subscribeToPresence(userId, (presences) => {
       const ids = new Set<string>();
       Object.keys(presences).forEach((key) => {
         if (presences[key]?.length > 0) ids.add(key);
@@ -122,10 +128,10 @@ export function ChatLayout({
     });
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
       setOnlineUserIds(new Set());
     };
-  }, [user, setOnlineUserIds]);
+  }, [userId, setOnlineUserIds]);
 
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
   const loomRailMeasureRef = useRef<HTMLDivElement | null>(null);
